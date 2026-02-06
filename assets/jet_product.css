@@ -19,6 +19,12 @@
 /* Текст за вноските */
 .jet-vnoska-text {
   display: block;
+  padding: 2px 0px;
+  color: #01A66C;
+  font-size: 14pt;
+  font-weight: 500;
+  line-height: 26px;
+  text-align: left;
 }
 
 /* Съобщение за грешка при липсващи настройки */
