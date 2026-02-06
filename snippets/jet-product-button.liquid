@@ -5,7 +5,7 @@
       {% comment %}Цената е по-малка от минималната, не показваме нищо{% endcomment %}
     {% else %}
       {{ 'jet_product.css' | asset_url | stylesheet_tag }}
-      {{ 'jet_product.js' | asset_url | script_tag }}
+      <script src="{{ 'jet_product.js' | asset_url }}" defer></script>
 
       {% assign jet_email_pbpf_valid = false %}
       {% if settings.jet_email_pbpf != blank %}
@@ -69,6 +69,8 @@
             src="{{ 'jet.png' | asset_url }}"
             alt="ПБ Лични Финанси"
             class="jet-product-button-img"
+            width="200"
+            height="69"
           >
         </div>
         {% if settings.jet_vnoska %}
@@ -91,6 +93,8 @@
               src="{{ 'jet_card.png' | asset_url }}"
               alt="ПБ Лични Финанси (кредитна карта)"
               class="jet-product-button-img"
+              width="200"
+              height="69"
             >
           </div>
           {% if settings.jet_vnoska %}
