@@ -4,6 +4,9 @@
     {% if product_price < settings.jet_minprice %}
       {% comment %}Цената е по-малка от минималната, не показваме нищо{% endcomment %}
     {% else %}
+      {{ 'jet_product.css' | asset_url | stylesheet_tag }}
+      {{ 'jet_product.js' | asset_url | script_tag }}
+
       {% assign jet_email_pbpf_valid = false %}
       {% if settings.jet_email_pbpf != blank %}
         {% assign jet_email_pbpf_trimmed = settings.jet_email_pbpf | strip %}
@@ -37,31 +40,84 @@
       {% endif %}
 
       {% if jet_email_pbpf_valid and jet_email_shop_valid and jet_id_valid %}
+        {% comment %}Изчисляване на вноските{% endcomment %}
+        {% assign jet_parva = 0 %}
+        {% assign jet_total_credit_price = product_price | minus: jet_parva %}
+        {% assign jet_min_vnoski = 125 %}
+        {% if jet_total_credit_price < jet_min_vnoski %}
+          {% assign jet_vnoski = 9 %}
+        {% else %}
+          {% assign jet_vnoski = settings.jet_vnoski_default %}
+        {% endif %}
+        {% comment %}Изчисляване на месечната вноска: jet_vnoska = (jet_total_credit_price / jet_vnoski) * (1 + (jet_vnoski * jet_purcent) / 100){% endcomment %}
+        {% assign jet_vnoska_calc = jet_total_credit_price | divided_by: jet_vnoski | times: 1.0 %}
+        {% assign jet_vnoska_multiplier = jet_vnoski | times: settings.jet_purcent | divided_by: 100.0 | plus: 1.0 %}
+        {% assign jet_vnoska = jet_vnoska_calc | times: jet_vnoska_multiplier %}
         <div
+          id="jet-product-button-container"
           class="jet-product-button"
           {% if settings.jet_gap > 0 %}
-            style="margin-top: {{ settings.jet_gap }}px;"
+            style="--jet-gap: {{ settings.jet_gap }}px;"
           {% endif %}
+          data-product-price="{{ product.selected_or_first_available_variant.price }}"
+          data-jet-min-vnoski="{{ jet_min_vnoski }}"
+          data-jet-vnoski-default="{{ settings.jet_vnoski_default }}"
+          data-jet-parva="{{ jet_parva }}"
+          data-jet-purcent="{{ settings.jet_purcent }}"
         >
-          ПБ Лични Финанси
+          <img
+            src="{{ 'jet.png' | asset_url }}"
+            alt="ПБ Лични Финанси"
+            class="jet-product-button-img"
+          >
         </div>
         {% if settings.jet_vnoska %}
-          <div>ВНОСКА</div>
+          <div
+            class="jet-vnoska-text jet-vnoska-regular"
+            data-vnoski="{{ jet_vnoski }}"
+            data-jet-purcent="{{ settings.jet_purcent }}"
+          >
+            {{ jet_vnoski }} x {{ jet_vnoska | round: 2 }} €
+          </div>
         {% endif %}
 
         {% if settings.jet_card_in %}
-          <div class="jet-product-button">ПБ Лични Финанси (кредитна карта)</div>
+          <div
+            id="jet-product-button-card-container"
+            class="jet-product-button"
+            data-jet-purcent-card="{{ settings.jet_purcent_card }}"
+          >
+            <img
+              src="{{ 'jet_card.png' | asset_url }}"
+              alt="ПБ Лични Финанси (кредитна карта)"
+              class="jet-product-button-img"
+            >
+          </div>
           {% if settings.jet_vnoska %}
-            <div>ВНОСКА</div>
+            {% comment %}Изчисляване на месечната вноска за кредитна карта{% endcomment %}
+            {% assign jet_vnoska_card_calc = jet_total_credit_price | divided_by: jet_vnoski | times: 1.0 %}
+            {% assign jet_vnoska_card_multiplier = jet_vnoski
+              | times: settings.jet_purcent_card
+              | divided_by: 100.0
+              | plus: 1.0
+            %}
+            {% assign jet_vnoska_card = jet_vnoska_card_calc | times: jet_vnoska_card_multiplier %}
+            <div
+              class="jet-vnoska-text jet-vnoska-card"
+              data-vnoski="{{ jet_vnoski }}"
+              data-jet-purcent-card="{{ settings.jet_purcent_card }}"
+            >
+              {{ jet_vnoski }} x {{ jet_vnoska_card | round: 2 }} €
+            </div>
           {% endif %}
         {% endif %}
       {% else %}
-        <div style="color: #d32f2f; padding: 10px; background-color: #ffebee; border: 1px solid #ef5350; border-radius: 4px;">
+        <div class="jet-product-error">
           <strong
             >За да може да бъде направена заявка за лизинг, е необходимо да попълните следните задължителни параметри в
             настройките на темата:</strong
           >
-          <ul style="margin: 10px 0; padding-left: 20px;">
+          <ul class="jet-product-error-list">
             {% unless jet_email_pbpf_valid %}
               <li>
                 Попълнете коректно параметъра "Email ПБ Лични Финанси" с валиден email адрес (само един адрес). Това е

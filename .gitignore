@@ -6,3 +6,8 @@
 !shopify-theme-procedure.txt
 !snippets/
 !snippets/jet-product-button.liquid
+!assets/
+!assets/jet.png
+!assets/jet_card.png
+!assets/jet_product.css
+!assets/jet_product.js
