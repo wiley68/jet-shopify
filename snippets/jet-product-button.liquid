@@ -60,8 +60,11 @@
             style="--jet-gap: {{ settings.jet_gap }}px;"
           {% endif %}
           data-product-price="{{ product.selected_or_first_available_variant.price }}"
+          data-variant-id="{{ product.selected_or_first_available_variant.id }}"
+          data-jet-minprice="{{ settings.jet_minprice }}"
           data-jet-min-vnoski="{{ jet_min_vnoski }}"
           data-jet-vnoski-default="{{ settings.jet_vnoski_default }}"
+          data-jet-vnoski="{{ jet_vnoski }}"
           data-jet-parva="{{ jet_parva }}"
           data-jet-purcent="{{ settings.jet_purcent }}"
         >
@@ -87,135 +90,150 @@
         <div id="jet-popup-overlay" class="jet-popup-overlay" style="display: none;">
           <div class="jet-popup-container">
             <div class="jet-popup-content">
-              <!-- Ред 1: Първоначална вноска -->
-              <div class="jet-popup-row">
-                <label class="jet-popup-label">Първоначална вноска (€)</label>
-                <div class="jet-popup-input-group">
+              <!-- Стъпка 1: Параметри на кредита (месеци, първоначална, вноска) -->
+              <div id="jet-popup-step1" class="jet-popup-step">
+                <!-- Ред 1: Първоначална вноска -->
+                <div class="jet-popup-row">
+                  <label class="jet-popup-label">Първоначална вноска (€)</label>
+                  <div class="jet-popup-input-group">
+                    <input
+                      type="number"
+                      id="jet-parva-input"
+                      class="jet-popup-input"
+                      min="0"
+                      step="1"
+                      value="0"
+                    >
+                    <button type="button" id="jet-recalculate-btn" class="jet-popup-btn">Преизчисли</button>
+                  </div>
+                </div>
+
+                <!-- Ред 2: Цена на стоките -->
+                <div class="jet-popup-row">
+                  <label class="jet-popup-label">Цена на стоките (€)</label>
                   <input
-                    type="number"
-                    id="jet-parva-input"
-                    class="jet-popup-input"
-                    min="0"
-                    step="1"
-                    value="0"
+                    type="text"
+                    id="jet-product-price-input"
+                    class="jet-popup-input jet-popup-input-readonly"
+                    readonly
+                    value="{{ product_price | round: 2 }}"
                   >
-                  <button type="button" id="jet-recalculate-btn" class="jet-popup-btn">Преизчисли</button>
+                </div>
+
+                <!-- Ред 3: Брой погасителни вноски (custom dropdown за падинг в опциите) -->
+                <div class="jet-popup-row">
+                  <label class="jet-popup-label">Брой погасителни вноски</label>
+                  <div class="jet-select-wrap">
+                    <select id="jet-vnoski-select" class="jet-popup-select" aria-hidden="true" tabindex="-1">
+                      <option value="3">3 месеца</option>
+                      <option value="6">6 месеца</option>
+                      <option value="9">9 месеца</option>
+                      <option value="12" selected>12 месеца</option>
+                      <option value="15">15 месеца</option>
+                      <option value="18">18 месеца</option>
+                      <option value="24">24 месеца</option>
+                      <option value="30">30 месеца</option>
+                      <option value="36">36 месеца</option>
+                    </select>
+                    <div id="jet-vnoski-display" class="jet-select-display" aria-label="Брой погасителни вноски"></div>
+                    <div id="jet-vnoski-list" class="jet-select-list" role="listbox" hidden></div>
+                  </div>
+                </div>
+
+                <!-- Ред 4: Общ размер на кредита -->
+                <div class="jet-popup-row">
+                  <label class="jet-popup-label">Общ размер на кредита (€)</label>
+                  <input
+                    type="text"
+                    id="jet-total-credit-input"
+                    class="jet-popup-input jet-popup-input-readonly"
+                    readonly
+                    value="{{ jet_total_credit_price | round: 2 }}"
+                  >
+                </div>
+
+                <!-- Ред 5: Месечна вноска -->
+                <div class="jet-popup-row">
+                  <label class="jet-popup-label">Месечна вноска (€)</label>
+                  <input
+                    type="text"
+                    id="jet-monthly-vnoska-input"
+                    class="jet-popup-input jet-popup-input-readonly"
+                    readonly
+                    value="{{ jet_vnoska | round: 2 }}"
+                  >
+                </div>
+
+                <!-- Ред 6: Фикс ГПР -->
+                <div class="jet-popup-row">
+                  <label class="jet-popup-label">Фикс ГПР (%)</label>
+                  <input
+                    type="text"
+                    id="jet-fix-gpr-input"
+                    class="jet-popup-input jet-popup-input-readonly"
+                    readonly
+                    value="0.00"
+                  >
+                </div>
+
+                <!-- Ред 7: ГЛП -->
+                <div class="jet-popup-row">
+                  <label class="jet-popup-label">ГЛП (%)</label>
+                  <input
+                    type="text"
+                    id="jet-glp-input"
+                    class="jet-popup-input jet-popup-input-readonly"
+                    readonly
+                    value="0.00"
+                  >
+                </div>
+
+                <!-- Ред 8: Обща стойност на плащанията -->
+                <div class="jet-popup-row">
+                  <label class="jet-popup-label">Обща стойност на плащанията (€)</label>
+                  <input
+                    type="text"
+                    id="jet-total-payments-input"
+                    class="jet-popup-input jet-popup-input-readonly"
+                    readonly
+                    value="{{ jet_vnoski | times: jet_vnoska | round: 2 }}"
+                  >
+                </div>
+
+                <!-- Ред 9: Разделител и checkbox-ове -->
+                <div class="jet-popup-divider"></div>
+                <div class="jet-popup-row">
+                  <label class="jet-popup-checkbox-label">
+                    <input type="checkbox" id="jet-terms-checkbox" class="jet-popup-checkbox">
+                    <a href="https://www.postbank.bg/common-conditions-PFBG" target="_blank" rel="noopener noreferrer"
+                      >Запознах се с условията за кандидатстване на ПБ Лични финанси</a
+                    >
+                  </label>
+                </div>
+                <div class="jet-popup-row">
+                  <label class="jet-popup-checkbox-label">
+                    <input type="checkbox" id="jet-gdpr-checkbox" class="jet-popup-checkbox">
+                    <a
+                      href="https://www.postbank.bg/Personal-Data-PFBG-retailers"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >"GDPR" означава Регламент (ЕС) 2016/679 от 27 април 2016 г. за защита на физическите лица по
+                      отношение на обработката на лични данни и за свободното движение на такива данни и за отмяна на
+                      Директива 95/46 / ЕО</a
+                    >
+                  </label>
                 </div>
               </div>
-
-              <!-- Ред 2: Цена на стоките -->
-              <div class="jet-popup-row">
-                <label class="jet-popup-label">Цена на стоките:</label>
-                <input
-                  type="text"
-                  id="jet-product-price-input"
-                  class="jet-popup-input jet-popup-input-readonly"
-                  readonly
-                  value="{{ product_price | round: 2 }} €"
-                >
-              </div>
-
-              <!-- Ред 3: Брой погасителни вноски -->
-              <div class="jet-popup-row">
-                <label class="jet-popup-label">Брой погасителни вноски:</label>
-                <select id="jet-vnoski-select" class="jet-popup-select">
-                  <option value="3">3 месеца</option>
-                  <option value="6">6 месеца</option>
-                  <option value="9">9 месеца</option>
-                  <option value="12" selected>12 месеца</option>
-                  <option value="15">15 месеца</option>
-                  <option value="18">18 месеца</option>
-                  <option value="24">24 месеца</option>
-                  <option value="30">30 месеца</option>
-                  <option value="36">36 месеца</option>
-                </select>
-              </div>
-
-              <!-- Ред 4: Общ размер на кредита -->
-              <div class="jet-popup-row">
-                <label class="jet-popup-label">Общ размер на кредита:</label>
-                <input
-                  type="text"
-                  id="jet-total-credit-input"
-                  class="jet-popup-input jet-popup-input-readonly"
-                  readonly
-                  value="{{ jet_total_credit_price | round: 2 }} €"
-                >
-              </div>
-
-              <!-- Ред 5: Месечна вноска -->
-              <div class="jet-popup-row">
-                <label class="jet-popup-label">Месечна вноска:</label>
-                <input
-                  type="text"
-                  id="jet-monthly-vnoska-input"
-                  class="jet-popup-input jet-popup-input-readonly"
-                  readonly
-                  value="{{ jet_vnoska | round: 2 }} €"
-                >
-              </div>
-
-              <!-- Ред 6: Фикс ГПР -->
-              <div class="jet-popup-row">
-                <label class="jet-popup-label">Фикс ГПР:</label>
-                <input
-                  type="text"
-                  id="jet-fix-gpr-input"
-                  class="jet-popup-input jet-popup-input-readonly"
-                  readonly
-                  value="0.00 €"
-                >
-              </div>
-
-              <!-- Ред 7: ГЛП -->
-              <div class="jet-popup-row">
-                <label class="jet-popup-label">ГЛП:</label>
-                <input
-                  type="text"
-                  id="jet-glp-input"
-                  class="jet-popup-input jet-popup-input-readonly"
-                  readonly
-                  value="0.00 €"
-                >
-              </div>
-
-              <!-- Ред 8: Обща стойност на плащанията -->
-              <div class="jet-popup-row">
-                <label class="jet-popup-label">Обща стойност на плащанията:</label>
-                <input
-                  type="text"
-                  id="jet-total-payments-input"
-                  class="jet-popup-input jet-popup-input-readonly"
-                  readonly
-                  value="{{ jet_vnoski | times: jet_vnoska | round: 2 }} €"
-                >
-              </div>
-
-              <!-- Ред 9: Разделител и checkbox-ове -->
-              <div class="jet-popup-divider"></div>
-              <div class="jet-popup-row">
-                <label class="jet-popup-checkbox-label">
-                  <input type="checkbox" id="jet-terms-checkbox" class="jet-popup-checkbox">
-                  Запознах се с условията за кандидатстване на ПБ Лични финанси
-                </label>
-              </div>
-              <div class="jet-popup-row">
-                <label class="jet-popup-checkbox-label">
-                  <input type="checkbox" id="jet-gdpr-checkbox" class="jet-popup-checkbox">
-                  "GDPR" означава Регламент (ЕС) 2016/679 от 27 април 2016 г. за защита на физическите лица по отношение
-                  на обработката на лични данни и за свободното движение на такива данни и за отмяна на Директива 95/46
-                  / ЕО
-                </label>
-              </div>
-
-              <!-- Ред 10: Бутони -->
-              <div class="jet-popup-row jet-popup-buttons">
-                <button type="button" id="jet-cancel-btn" class="jet-popup-btn jet-popup-btn-secondary">Откажи</button>
-                <button type="button" id="jet-add-to-cart-btn" class="jet-popup-btn jet-popup-btn-primary">
-                  Добави в количката
-                </button>
-                <button type="button" id="jet-buy-on-credit-btn" class="jet-popup-btn jet-popup-btn-primary">
-                  Купи на кредит
+              <!-- Стъпка 2: (съдържанието ще се добави на следващ етап) -->
+              <div id="jet-popup-step2" class="jet-popup-step" style="display: none;"></div>
+            </div>
+            <!-- Футър с бутони – пълна ширина, фон #01a66c -->
+            <div class="jet-popup-footer">
+              <div class="jet-popup-buttons">
+                <button type="button" id="jet-cancel-btn" class="jet-popup-btn">Откажи</button>
+                <button type="button" id="jet-add-to-cart-btn" class="jet-popup-btn">Добави в количката</button>
+                <button type="button" id="jet-buy-on-credit-btn" class="jet-popup-btn" disabled>
+                  Купи на изплащане
                 </button>
               </div>
             </div>

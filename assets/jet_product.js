@@ -5,6 +5,69 @@
   // Първоначална вноска (в центове, по подразбиране 0)
   let jet_parva = 0;
 
+  var JETCREDIT_FINANCIAL_MAX_ITERATIONS = 128;
+  var JETCREDIT_FINANCIAL_PRECISION = 1e-8;
+
+  /**
+   * Изчислява лихвения процент (RATE) – метод на секанса
+   * @param {number} nper - Брой периоди (вноски)
+   * @param {number} pmt - Вноска за период
+   * @param {number} pv - Настояща стойност (заемът, отрицателна стойност)
+   * @param {number} fv - Бъдеща стойност (по подразбиране 0)
+   * @param {number} type - 0 = вноска в края на периода, 1 = в началото (по подразбиране 0)
+   * @param {number} guess - Начално предположение за лихвата (по подразбиране 0.1)
+   * @returns {number} Лихва за период (десетична, напр. 0.01 за 1%)
+   */
+  function RATE(nper, pmt, pv, fv, type, guess) {
+    if (fv === undefined) fv = 0;
+    if (type === undefined) type = 0;
+    if (guess === undefined) guess = 0.1;
+    var rate = guess;
+    var f;
+    var y;
+    if (Math.abs(rate) < JETCREDIT_FINANCIAL_PRECISION) {
+      y = pv * (1 + nper * rate) + pmt * (1 + rate * type) * nper + fv;
+    } else {
+      f = Math.exp(nper * Math.log(1 + rate));
+      y = pv * f + pmt * (1 / rate + type) * (f - 1) + fv;
+    }
+    var y0 = pv + pmt * nper + fv;
+    var y1 = y;
+    var i = 0;
+    var x0 = 0;
+    var x1 = rate;
+    while ((Math.abs(y0 - y1) > JETCREDIT_FINANCIAL_PRECISION) && (i < JETCREDIT_FINANCIAL_MAX_ITERATIONS)) {
+      rate = (y1 * x0 - y0 * x1) / (y1 - y0);
+      x0 = x1;
+      x1 = rate;
+      if (Math.abs(rate) < JETCREDIT_FINANCIAL_PRECISION) {
+        y = pv * (1 + nper * rate) + pmt * (1 + rate * type) * nper + fv;
+      } else {
+        f = Math.exp(nper * Math.log(1 + rate));
+        y = pv * f + pmt * (1 / rate + type) * (f - 1) + fv;
+      }
+      y0 = y1;
+      y1 = y;
+      i++;
+    }
+    return rate;
+  }
+
+  /**
+   * Изчислява ГПР (%) и ГЛП (%) от брой вноски, месечна вноска и общ размер на кредита (в евро)
+   * @param {number} vnoski - Брой вноски
+   * @param {number} monthlyVnoskaEuro - Месечна вноска в евро
+   * @param {number} totalCreditPriceEuro - Общ размер на кредита в евро
+   * @returns {{ gpr: number, glp: number }} gpr и glp в проценти
+   */
+  function calculateGprGlp(vnoski, monthlyVnoskaEuro, totalCreditPriceEuro) {
+    var rate = RATE(vnoski, monthlyVnoskaEuro, -totalCreditPriceEuro, 0, 0, 0.1);
+    var jetGprm = rate * 12;
+    var jetGpr = (Math.pow(1 + jetGprm / 12, 12) - 1) * 100;
+    var jetGlp = (rate * 12) * 100;
+    return { gpr: jetGpr, glp: jetGlp };
+  }
+
   /**
    * Изчислява броя вноски според цената
    * @param {number} productPrice - Цената в центове
@@ -57,11 +120,12 @@
   }
 
   /**
-   * Обновява текста за вноските на страницата
+   * Обновява текста за вноските на страницата (надписите под бутона)
    * @param {number} productPrice - Цената в центове
    * @param {number} parva - Първоначална вноска в центове (опционално, използва текущата стойност ако не е зададена)
+   * @param {number} [vnoski] - Брой вноски (опционално; ако липсва, се изчислява от цената)
    */
-  function updateVnoskaText(productPrice, parva) {
+  function updateVnoskaText(productPrice, parva, vnoski) {
     const container = document.getElementById('jet-product-button-container');
     if (!container) return;
 
@@ -72,8 +136,10 @@
     // Изчисляваме реалната сума за кредит
     const jetTotalCreditPrice = productPrice - currentParva;
 
-    // Изчисляваме броя вноски
-    const vnoski = calculateVnoski(productPrice, jetMinVnoski, jetVnoskiDefault, currentParva);
+    // Брой вноски: от параметъра (напр. от попъпа) или изчислен от цената
+    if (vnoski === undefined || vnoski === null) {
+      vnoski = calculateVnoski(productPrice, jetMinVnoski, jetVnoskiDefault, currentParva);
+    }
 
     // Обновяваме елементите за редовен лизинг (използва jet_purcent)
     const regularElements = document.querySelectorAll('.jet-vnoska-regular');
@@ -190,6 +256,67 @@
   }
 
   /**
+   * Връща ID на текущо избрания вариант (за добавяне в количката)
+   * @returns {number|string|null} Variant ID или null
+   */
+  function getCurrentVariantId() {
+    var form = document.querySelector('form[action*="cart/add"], form[data-type="add-to-cart-form"]');
+    if (form) {
+      var idInput = form.querySelector('input[name="id"]');
+      if (idInput && idInput instanceof HTMLInputElement && idInput.value) return idInput.value;
+    }
+    var checkedRadio = document.querySelector('input[type="radio"][name*="variant"]:checked, input[type="radio"][name*="Color"]:checked, input[type="radio"][name*="Size"]:checked');
+    if (checkedRadio && checkedRadio.getAttribute('data-variant-id')) {
+      return checkedRadio.getAttribute('data-variant-id');
+    }
+    var variantScripts = document.querySelectorAll('form script[type="application/json"]');
+    for (var s = 0; s < variantScripts.length; s++) {
+      var scriptEl = variantScripts[s];
+      if (!scriptEl) continue;
+      try {
+        var data = JSON.parse(scriptEl.textContent || '{}');
+        if (data && data.id) return data.id;
+      } catch (e) { }
+    }
+    var container = document.getElementById('jet-product-button-container');
+    if (container && container.dataset.variantId) return container.dataset.variantId;
+    return null;
+  }
+
+  /**
+   * Добавя продукта в количката и пренасочва към /cart
+   * @returns {Promise<boolean>} true при успех, false при грешка или липсващ variant
+   */
+  function addCurrentProductToCartAndGoToCart() {
+    var variantId = getCurrentVariantId();
+    if (!variantId) return Promise.resolve(false);
+    var quantityInput = document.querySelector('input[name="quantity"], input[type="number"][name*="quantity"]');
+    var quantity = 1;
+    if (quantityInput && quantityInput instanceof HTMLInputElement) {
+      var q = parseInt(quantityInput.value, 10);
+      if (!isNaN(q) && q > 0) quantity = q;
+    }
+    var shopify = typeof window !== 'undefined' ? /** @type {{ routes?: { root?: string } } | undefined} */ (window['Shopify']) : undefined;
+    var shopifyRoot = (shopify && shopify.routes && shopify.routes.root) ? shopify.routes.root : '';
+    var cartAddUrl = shopifyRoot + 'cart/add.js';
+    return fetch(cartAddUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: [{ id: variantId, quantity: quantity }] })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        var status;
+        if (data && typeof data === 'object' && 'status' in data) status = /** @type {{ status: number }} */ (data).status;
+        if (status === 422) return false;
+        var cartUrl = shopifyRoot + 'cart';
+        window.location.href = cartUrl;
+        return true;
+      })
+      .catch(function () { return false; });
+  }
+
+  /**
    * Обновява цената и вноските при промяна на вариант
    */
   function updatePriceFromVariant() {
@@ -242,23 +369,60 @@
 
     const jetPurcent = parseFloat(container.dataset.jetPurcent || '0');
     const currentParva = jet_parva || 0;
-    const vnoskaElement = document.querySelector('.jet-vnoska-regular');
-    const vnoskiFromElement = vnoskaElement instanceof HTMLElement ? vnoskaElement.dataset.vnoski : null;
-    const currentVnoski = parseInt(vnoskiFromElement || container.dataset.jetVnoskiDefault || '12');
+    // Брой вноски при отваряне: от текста под бутона (ако е обновен) или от Liquid (data-jet-vnoski)
+    const vnoskaEl = document.querySelector('.jet-vnoska-regular');
+    const vnoskiFromEl = vnoskaEl instanceof HTMLElement ? vnoskaEl.dataset.vnoski : undefined;
+    const currentVnoski = parseInt(
+      vnoskiFromEl || container.dataset.jetVnoski || container.dataset.jetVnoskiDefault || '12',
+      10
+    );
 
-    // Обновяваме стойностите в popup-а
-    updatePopupValues(productPrice, currentParva, currentVnoski, jetPurcent);
+    // При отваряне винаги показваме стъпка 1
+    const step1 = document.getElementById('jet-popup-step1');
+    const step2 = document.getElementById('jet-popup-step2');
+    if (step1) step1.style.display = '';
+    if (step2) step2.style.display = 'none';
 
     overlay.style.display = 'flex';
+
+    const vnoskiListEl = document.getElementById('jet-vnoski-list');
+    if (vnoskiListEl) vnoskiListEl.hidden = true;
+
+    // Обновяваме стойностите в popup-а след показване, за да се визуализира select-ът правилно
+    updatePopupValues(productPrice, currentParva, currentVnoski, jetPurcent);
   }
 
   /**
-   * Затваря popup прозореца
+   * Затваря popup прозореца и връща към стъпка 1
    */
   function closeJetPopup() {
     const overlay = document.getElementById('jet-popup-overlay');
     if (overlay) {
       overlay.style.display = 'none';
+    }
+    const step1 = document.getElementById('jet-popup-step1');
+    const step2 = document.getElementById('jet-popup-step2');
+    if (step1) step1.style.display = '';
+    if (step2) step2.style.display = 'none';
+    var termsCheckbox = document.getElementById('jet-terms-checkbox');
+    var gdprCheckbox = document.getElementById('jet-gdpr-checkbox');
+    if (termsCheckbox && termsCheckbox instanceof HTMLInputElement) {
+      termsCheckbox.checked = false;
+      termsCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if (gdprCheckbox && gdprCheckbox instanceof HTMLInputElement) {
+      gdprCheckbox.checked = false;
+      gdprCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    jet_parva = 0;
+    var parvaInput = document.getElementById('jet-parva-input');
+    if (parvaInput && parvaInput instanceof HTMLInputElement) {
+      parvaInput.value = '0';
+    }
+    var container = document.getElementById('jet-product-button-container');
+    if (container) {
+      var productPrice = parseFloat(container.dataset.productPrice || '0');
+      if (productPrice) updateVnoskaText(productPrice, 0);
     }
   }
 
@@ -270,11 +434,19 @@
    * @param {number} jetPurcent - Процент
    */
   function updatePopupValues(productPrice, parva, vnoski, jetPurcent) {
+    const container = document.getElementById('jet-product-button-container');
+    const jetMinpriceEuro = container ? (parseFloat(container.dataset.jetMinprice || '0') || 0) : 0;
+    const maxParvaCents = Math.max(0, productPrice - Math.round(jetMinpriceEuro * 100));
+    if (parva > maxParvaCents) parva = maxParvaCents;
+
     // Конвертираме от центове в евро
     const productPriceEuro = productPrice / 100.0;
     const parvaEuro = parva / 100.0;
     const totalCreditPriceEuro = productPriceEuro - parvaEuro;
     const totalCreditPriceCents = Math.round(totalCreditPriceEuro * 100);
+
+    // Коригираме вноските според ограниченията за общия размер на кредита
+    vnoski = getAllowedVnoski(totalCreditPriceEuro, vnoski);
 
     // Изчисляваме месечната вноска
     const monthlyVnoskaCents = calculateJetVnoska(totalCreditPriceCents, vnoski, jetPurcent);
@@ -291,28 +463,49 @@
 
     const productPriceInput = document.getElementById('jet-product-price-input');
     if (productPriceInput && productPriceInput instanceof HTMLInputElement) {
-      productPriceInput.value = productPriceEuro.toFixed(2) + ' €';
+      productPriceInput.value = productPriceEuro.toFixed(2);
     }
 
     const vnoskiSelect = document.getElementById('jet-vnoski-select');
     if (vnoskiSelect && vnoskiSelect instanceof HTMLSelectElement) {
-      vnoskiSelect.value = String(vnoski);
+      const val = String(vnoski);
+      vnoskiSelect.value = val;
+      for (let i = 0; i < vnoskiSelect.options.length; i++) {
+        const opt = vnoskiSelect.options[i];
+        if (opt && opt.value === val) {
+          vnoskiSelect.selectedIndex = i;
+          break;
+        }
+      }
+      syncJetVnoskiDisplay();
     }
 
     const totalCreditInput = document.getElementById('jet-total-credit-input');
     if (totalCreditInput && totalCreditInput instanceof HTMLInputElement) {
-      totalCreditInput.value = totalCreditPriceEuro.toFixed(2) + ' €';
+      totalCreditInput.value = totalCreditPriceEuro.toFixed(2);
     }
 
     const monthlyVnoskaInput = document.getElementById('jet-monthly-vnoska-input');
     if (monthlyVnoskaInput && monthlyVnoskaInput instanceof HTMLInputElement) {
-      monthlyVnoskaInput.value = monthlyVnoskaEuro.toFixed(2) + ' €';
+      monthlyVnoskaInput.value = monthlyVnoskaEuro.toFixed(2);
     }
 
     const totalPaymentsInput = document.getElementById('jet-total-payments-input');
     if (totalPaymentsInput && totalPaymentsInput instanceof HTMLInputElement) {
-      totalPaymentsInput.value = totalPaymentsEuro.toFixed(2) + ' €';
+      totalPaymentsInput.value = totalPaymentsEuro.toFixed(2);
     }
+
+    var gprGlp = calculateGprGlp(vnoski, monthlyVnoskaEuro, totalCreditPriceEuro);
+    var gprInput = document.getElementById('jet-fix-gpr-input');
+    if (gprInput && gprInput instanceof HTMLInputElement) {
+      gprInput.value = gprGlp.gpr.toFixed(2);
+    }
+    var glpInput = document.getElementById('jet-glp-input');
+    if (glpInput && glpInput instanceof HTMLInputElement) {
+      glpInput.value = gprGlp.glp.toFixed(2);
+    }
+
+    applyVnoskiOptionsRestrictions(totalCreditPriceEuro);
   }
 
   /**
@@ -329,10 +522,17 @@
 
     const productPrice = parseFloat(container.dataset.productPrice || '0');
     const jetPurcent = parseFloat(container.dataset.jetPurcent || '0');
+    const jetMinpriceEuro = parseFloat(container.dataset.jetMinprice || '0') || 0;
+    const maxParvaCents = Math.max(0, productPrice - Math.round(jetMinpriceEuro * 100));
 
-    // Вземаме стойностите от input полетата
-    const parvaEuro = parseFloat(parvaInput instanceof HTMLInputElement ? parvaInput.value : '0') || 0;
-    const parvaCents = Math.round(parvaEuro * 100);
+    // Вземаме стойностите от input полетата и ограничаваме първоначалната вноска
+    let parvaEuro = parseFloat(parvaInput instanceof HTMLInputElement ? parvaInput.value : '0') || 0;
+    let parvaCents = Math.round(parvaEuro * 100);
+    if (parvaCents > maxParvaCents) {
+      parvaCents = maxParvaCents;
+      parvaEuro = parvaCents / 100;
+      if (parvaInput instanceof HTMLInputElement) parvaInput.value = String(parvaCents / 100);
+    }
     const vnoski = parseInt(vnoskiSelect instanceof HTMLSelectElement ? vnoskiSelect.value : '12') || 12;
 
     // Обновяваме глобалната променлива
@@ -341,8 +541,77 @@
     // Обновяваме стойностите в popup-а
     updatePopupValues(productPrice, parvaCents, vnoski, jetPurcent);
 
-    // Обновяваме и текста под бутона
-    updateVnoskaText(productPrice, parvaCents);
+    // Обновяваме надписите под бутона с избрания брой вноски от попъпа
+    updateVnoskaText(productPrice, parvaCents, vnoski);
+  }
+
+  /**
+   * Връща стойностите на опции вноски, които трябва да са забранени според общия размер на кредита (в евро).
+   * 1. totalCreditPriceEuro <= 200 -> забранени 15, 18, 24, 30, 36
+   * 2. 200 < totalCreditPriceEuro <= 300 -> забранени 30, 36
+   * 3. > 300 -> всички позволени
+   * @param {number} totalCreditPriceEuro - Общ размер на кредита в евро
+   * @returns {Set<string>} Множество от value стойности (стрингове), които трябва да са disabled
+   */
+  function getDisabledVnoskiValues(totalCreditPriceEuro) {
+    const disabled = new Set();
+    if (totalCreditPriceEuro <= 200) {
+      ['15', '18', '24', '30', '36'].forEach(function (v) { disabled.add(v); });
+    } else if (totalCreditPriceEuro <= 300) {
+      disabled.add('30');
+      disabled.add('36');
+    }
+    return disabled;
+  }
+
+  /**
+   * Прилага ограниченията за опции вноски според общия размер на кредита и обновява native select + custom list
+   * @param {number} totalCreditPriceEuro - Общ размер на кредита в евро
+   */
+  function applyVnoskiOptionsRestrictions(totalCreditPriceEuro) {
+    const disabledSet = getDisabledVnoskiValues(totalCreditPriceEuro);
+    const vnoskiSelect = document.getElementById('jet-vnoski-select');
+    if (vnoskiSelect && vnoskiSelect instanceof HTMLSelectElement) {
+      for (let i = 0; i < vnoskiSelect.options.length; i++) {
+        const opt = vnoskiSelect.options[i];
+        if (opt) opt.disabled = disabledSet.has(opt.value);
+      }
+    }
+    const vnoskiList = document.getElementById('jet-vnoski-list');
+    if (vnoskiList) {
+      const options = vnoskiList.querySelectorAll('.jet-select-option');
+      options.forEach(function (el) {
+        const val = el.getAttribute('data-value');
+        const isDisabled = val !== null && disabledSet.has(val);
+        el.classList.toggle('jet-select-option--disabled', isDisabled);
+        el.setAttribute('aria-disabled', isDisabled ? 'true' : 'false');
+      });
+    }
+  }
+
+  /**
+   * Връща позволена стойност за вноски: ако текущата е забранена, връща първата позволена
+   * @param {number} totalCreditPriceEuro - Общ размер на кредита в евро
+   * @param {number} currentVnoski - Текущ избран брой вноски
+   * @returns {number} Позволен брой вноски
+   */
+  function getAllowedVnoski(totalCreditPriceEuro, currentVnoski) {
+    const disabledSet = getDisabledVnoskiValues(totalCreditPriceEuro);
+    const allowed = [3, 6, 9, 12, 15, 18, 24, 30, 36].filter(function (v) { return !disabledSet.has(String(v)); });
+    if (allowed.length === 0) return currentVnoski;
+    if (disabledSet.has(String(currentVnoski))) return allowed[0] ?? currentVnoski;
+    return currentVnoski;
+  }
+
+  /**
+   * Синхронизира текста в custom dropdown за вноски с избраната опция в select
+   */
+  function syncJetVnoskiDisplay() {
+    const sel = document.getElementById('jet-vnoski-select');
+    const display = document.getElementById('jet-vnoski-display');
+    if (!sel || !display || !(sel instanceof HTMLSelectElement)) return;
+    const opt = sel.options[sel.selectedIndex];
+    display.textContent = opt ? opt.textContent || opt.value : '';
   }
 
   /**
@@ -352,12 +621,46 @@
     const overlay = document.getElementById('jet-popup-overlay');
     if (!overlay) return;
 
-    // Затваряне при клик на overlay
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) {
-        closeJetPopup();
+    // Попъпът се затваря само чрез бутоните (Откажи и др.), не при клик извън него
+
+    // Custom dropdown за брой вноски
+    const vnoskiSelect = document.getElementById('jet-vnoski-select');
+    const vnoskiDisplay = document.getElementById('jet-vnoski-display');
+    const vnoskiList = document.getElementById('jet-vnoski-list');
+    if (vnoskiSelect && vnoskiDisplay && vnoskiList && vnoskiSelect instanceof HTMLSelectElement) {
+      for (let i = 0; i < vnoskiSelect.options.length; i++) {
+        const opt = vnoskiSelect.options[i];
+        if (!opt) continue;
+        const div = document.createElement('div');
+        div.className = 'jet-select-option';
+        div.setAttribute('role', 'option');
+        div.dataset.value = opt.value;
+        div.textContent = opt.textContent || opt.value;
+        vnoskiList.appendChild(div);
       }
-    });
+      syncJetVnoskiDisplay();
+      vnoskiDisplay.addEventListener('click', function () {
+        const hidden = vnoskiList.hidden;
+        vnoskiList.hidden = !hidden;
+      });
+      vnoskiList.addEventListener('click', function (e) {
+        const t = e.target;
+        if (t && t instanceof HTMLElement && t.classList.contains('jet-select-option') && t.dataset.value !== undefined) {
+          if (t.classList.contains('jet-select-option--disabled')) return;
+          vnoskiSelect.value = t.dataset.value;
+          vnoskiSelect.dispatchEvent(new Event('change', { bubbles: true }));
+          syncJetVnoskiDisplay();
+          vnoskiList.hidden = true;
+        }
+      });
+      document.addEventListener('click', function closeList(e) {
+        if (vnoskiList.hidden) return;
+        const target = e.target instanceof Node ? e.target : null;
+        if (target !== vnoskiDisplay && !vnoskiList.contains(target)) {
+          vnoskiList.hidden = true;
+        }
+      });
+    }
 
     // Бутон "Преизчисли"
     const recalculateBtn = document.getElementById('jet-recalculate-btn');
@@ -365,10 +668,16 @@
       recalculateBtn.addEventListener('click', recalculatePopup);
     }
 
-    // Промяна на броя вноски
-    const vnoskiSelect = document.getElementById('jet-vnoski-select');
-    if (vnoskiSelect) {
-      vnoskiSelect.addEventListener('change', recalculatePopup);
+    // При излизане от полето за първоначална вноска – ограничаваме до макс и преизчисляваме
+    const parvaInputForBlur = document.getElementById('jet-parva-input');
+    if (parvaInputForBlur) {
+      parvaInputForBlur.addEventListener('blur', recalculatePopup);
+    }
+
+    // Промяна на броя вноски (преизчисляване при избор от custom dropdown или при програмен промяна)
+    const vnoskiSelectEl = document.getElementById('jet-vnoski-select');
+    if (vnoskiSelectEl) {
+      vnoskiSelectEl.addEventListener('change', recalculatePopup);
     }
 
     // Бутон "Откажи"
@@ -377,41 +686,46 @@
       cancelBtn.addEventListener('click', closeJetPopup);
     }
 
-    // Бутон "Добави в количката"
+    // Бутон "Добави в количката" – добавя продукта в количката и пренасочва към количката (без проверка на чекбоксите)
     const addToCartBtn = document.getElementById('jet-add-to-cart-btn');
     if (addToCartBtn) {
       addToCartBtn.addEventListener('click', function () {
-        const termsCheckbox = document.getElementById('jet-terms-checkbox');
-        const gdprCheckbox = document.getElementById('jet-gdpr-checkbox');
-        const termsChecked = termsCheckbox instanceof HTMLInputElement ? termsCheckbox.checked : false;
-        const gdprChecked = gdprCheckbox instanceof HTMLInputElement ? gdprCheckbox.checked : false;
-
-        if (!termsChecked || !gdprChecked) {
-          alert('Моля, попълнете всички задължителни полета за съгласие.');
-          return;
-        }
-
-        // Тук може да се добави логика за добавяне в количката
-        closeJetPopup();
+        var btn = /** @type {HTMLButtonElement} */ (addToCartBtn);
+        if (btn.disabled) return;
+        btn.disabled = true;
+        addCurrentProductToCartAndGoToCart().then(function (ok) {
+          if (!ok) {
+            btn.disabled = false;
+            alert('Неуспешно добавяне в количката. Моля, опитайте отново или изберете вариант.');
+          }
+        });
       });
     }
 
-    // Бутон "Купи на кредит"
-    const buyOnCreditBtn = document.getElementById('jet-buy-on-credit-btn');
+    // Бутон "Купи на изплащане" – активира се само при двата чекбокса; при клик показва стъпка 2
+    const buyOnCreditBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('jet-buy-on-credit-btn'));
+    const termsCheckbox = document.getElementById('jet-terms-checkbox');
+    const gdprCheckbox = document.getElementById('jet-gdpr-checkbox');
+
+    function updateBuyOnCreditButtonState() {
+      if (!buyOnCreditBtn) return;
+      const termsChecked = termsCheckbox instanceof HTMLInputElement ? termsCheckbox.checked : false;
+      const gdprChecked = gdprCheckbox instanceof HTMLInputElement ? gdprCheckbox.checked : false;
+      buyOnCreditBtn.disabled = !(termsChecked && gdprChecked);
+    }
+
+    if (termsCheckbox) termsCheckbox.addEventListener('change', updateBuyOnCreditButtonState);
+    if (gdprCheckbox) gdprCheckbox.addEventListener('change', updateBuyOnCreditButtonState);
+    updateBuyOnCreditButtonState();
+
     if (buyOnCreditBtn) {
       buyOnCreditBtn.addEventListener('click', function () {
-        const termsCheckbox = document.getElementById('jet-terms-checkbox');
-        const gdprCheckbox = document.getElementById('jet-gdpr-checkbox');
-        const termsChecked = termsCheckbox instanceof HTMLInputElement ? termsCheckbox.checked : false;
-        const gdprChecked = gdprCheckbox instanceof HTMLInputElement ? gdprCheckbox.checked : false;
-
-        if (!termsChecked || !gdprChecked) {
-          alert('Моля, попълнете всички задължителни полета за съгласие.');
-          return;
-        }
-
-        // Тук може да се добави логика за изпращане на заявка за кредит
-        closeJetPopup();
+        if (buyOnCreditBtn.disabled) return;
+        const step1 = document.getElementById('jet-popup-step1');
+        const step2 = document.getElementById('jet-popup-step2');
+        if (step1) step1.style.display = 'none';
+        if (step2) step2.style.display = 'block';
+        // Съдържанието на стъпка 2 ще се добави на следващ етап
       });
     }
   }
