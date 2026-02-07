@@ -828,6 +828,50 @@
   }
 
   /**
+   * Изпраща POST заявка към приложението (app) с jet_id. Първо опит към primary URL, при грешка – fallback към secondary.
+   * Логва JSON отговора в конзолата (дебъг).
+   */
+  function sendJetRequestToApp() {
+    var container = document.getElementById('jet-product-button-container');
+    if (!container) return;
+    var jetId = (container.dataset.jetId || '').trim();
+    var primaryUrl = (container.dataset.jetPrimaryUrl || '').trim();
+    var secondaryUrl = (container.dataset.jetSecondaryUrl || '').trim();
+    if (!primaryUrl) {
+      console.log('[Jet] Debug: jet_id=', jetId, '(primary URL не е зададен в снипета)');
+      return;
+    }
+    var body = JSON.stringify({ jet_id: jetId });
+    var opts = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body };
+
+    /** @param {string} url */
+    function doFetch(url) {
+      return fetch(url, opts)
+        .then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        });
+    }
+
+    doFetch(primaryUrl)
+      .then(function (data) {
+        console.log('[Jet] App response (primary):', data);
+      })
+      .catch(function (err) {
+        console.warn('[Jet] Primary failed:', err);
+        if (secondaryUrl && secondaryUrl !== primaryUrl) {
+          doFetch(secondaryUrl)
+            .then(function (data) {
+              console.log('[Jet] App response (fallback):', data);
+            })
+            .catch(function (err2) {
+              console.warn('[Jet] Fallback failed:', err2);
+            });
+        }
+      });
+  }
+
+  /**
    * Инициализира popup функционалността
    */
   function initPopup() {
@@ -1065,7 +1109,7 @@
       step2SubmitBtn.disabled = true;
       step2SubmitBtn.addEventListener('click', function () {
         if (step2SubmitBtn.disabled) return;
-        // TODO: изпращане на заявка
+        sendJetRequestToApp();
       });
     }
   }
@@ -1261,7 +1305,7 @@
       step2SubmitBtnCard.disabled = true;
       step2SubmitBtnCard.addEventListener('click', function () {
         if (submitBtnRefCard.disabled) return;
-        // TODO: изпращане на заявка (карта)
+        sendJetRequestToApp();
       });
     }
   }

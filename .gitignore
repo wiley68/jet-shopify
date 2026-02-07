@@ -16,3 +16,4 @@
 !.theme-check.yml
 !.shopifyignore
 !app/
+!app/**
