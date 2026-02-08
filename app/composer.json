@@ -1,0 +1,10 @@
+{
+    "name": "pb-avalon/jet-api",
+    "description": "ПБ Лични Финанси – API за заявки и изпращане на имейл",
+    "require": {
+        "phpmailer/phpmailer": "^6.9"
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}

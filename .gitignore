@@ -17,3 +17,5 @@
 !.shopifyignore
 !app/
 !app/**
+# Composer – инсталирай на сървъра с composer install или качи vendor ръчно
+app/vendor/
