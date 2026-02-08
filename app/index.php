@@ -6,7 +6,7 @@
  * CORS: разрешава заявки от магазина (fetch от storefront).
  */
 
-// Debug режим (PB_DEBUG) – при true при 403 причината се връща в JSON тялото; задай false за production
+// Debug режим (PB_DEBUG) – при true при 403 причината се връща в JSON тялото. За production задай false.
 define('PB_DEBUG', true);
 
 header('Content-Type: application/json; charset=utf-8');

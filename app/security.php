@@ -2,7 +2,8 @@
 
 /**
  * Security checks за ПБ Лични Финанси API.
- * Приема само POST с JSON от браузър (Origin/Referer), HTTPS, GeoIP (България), rate limit по IP и по jet_id.
+ * Приема само POST с JSON от браузър (Origin/Referer), HTTPS, GeoIP (България),
+ * whitelist по shop_domain (allowed_domains.php), rate limit по IP, jet_id и email.
  */
 
 /**
@@ -53,11 +54,43 @@ function perform_security_checks(array $payload): void
         jet_exit_403('https_required');
     }
 
-    // 3. Origin или Referer – заявки от браузър (CORS) ги изпращат
+    // 3. Origin или Referer – задължителни и трябва да съвпадат с shop_domain от payload
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
     $referer = $_SERVER['HTTP_REFERER'] ?? '';
     if (empty($origin) && empty($referer)) {
         jet_exit_403('origin_or_referer_required');
+    }
+    $shopDomain = isset($payload['shop_domain']) ? trim((string) $payload['shop_domain']) : '';
+    if ($shopDomain !== '') {
+        $allowedHost = strtolower(preg_replace('#^https?://#', '', $shopDomain));
+        $allowedHost = trim(explode('/', $allowedHost)[0], " \t\n\r\0\x0B.");
+        $originHost = $origin !== '' ? parse_url($origin, PHP_URL_HOST) : null;
+        $refererHost = $referer !== '' ? parse_url($referer, PHP_URL_HOST) : null;
+        $checkHost = function ($host) use ($allowedHost) {
+            if ($host === null || $host === '') return false;
+            $h = strtolower($host);
+            if ($h === $allowedHost) return true;
+            if (substr($h, -strlen('.myshopify.com')) === '.myshopify.com') return true;
+            if (substr($h, -strlen('.shopifycdn.com')) === '.shopifycdn.com') return true;
+            return false;
+        };
+        if (!$checkHost($originHost) && !$checkHost($refererHost)) {
+            jet_exit_403('origin_referer_must_match_shop_domain');
+        }
+    }
+
+    // 3b. Whitelist по shop_domain – само домейни от списъка
+    $shopDomainNorm = $shopDomain !== '' ? strtolower(trim(explode('/', preg_replace('#^https?://#', '', $shopDomain))[0])) : '';
+    $allowedDomainsFile = __DIR__ . '/allowed_domains.php';
+    if (is_file($allowedDomainsFile)) {
+        $allowed_shop_domains = [];
+        require $allowedDomainsFile;
+        if (isset($allowed_shop_domains) && is_array($allowed_shop_domains) && count($allowed_shop_domains) > 0) {
+            $allowedLower = array_map('strtolower', array_map('trim', $allowed_shop_domains));
+            if ($shopDomainNorm === '' || !in_array($shopDomainNorm, $allowedLower, true)) {
+                jet_exit_403('shop_domain_not_in_whitelist');
+            }
+        }
     }
 
     // 4. Блокиране на ботове/сканери по User-Agent
@@ -153,6 +186,17 @@ function perform_security_checks(array $payload): void
             'error' => 'Missing required fields',
             'missing' => $missing,
         ], JSON_UNESCAPED_UNICODE));
+    }
+
+    // 9. Rate limiting по email – ограничава многократни заявки от един и същ имейл
+    $step2EmailNorm = $step2Email !== null && $step2Email !== '' ? strtolower(trim($step2Email)) : '';
+    if ($step2EmailNorm !== '') {
+        $emailKey = 'email_' . md5($step2EmailNorm);
+        if (!rl_check($emailKey, 5, 3600)) { // 5 заявки на час на имейл
+            http_response_code(429);
+            header('Retry-After: 3600');
+            exit('Too many requests');
+        }
     }
 }
 
