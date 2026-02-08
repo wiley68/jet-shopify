@@ -1,5 +1,6 @@
 # ПБ Лични Финанси API – защита на сървърно ниво
 # Само index.php; само POST (и OPTIONS за CORS preflight); блокиране на ботове/сканери
+FcgidWrapper "/home/httpd/cgi-bin/php84-fcgi-starter.fcgi" .php
 
 RewriteEngine On
 
@@ -24,3 +25,9 @@ RewriteRule .* - [F,L]
 
 # Лимит на тялото на заявката (~64KB)
 LimitRequestBody 65536
+
+# Забрани директно отваряне по URL на всички .php файлове освен index.php
+# (security.php, geoip.php, allowed_domains.php и др. се викат само от index.php)
+<FilesMatch "^(?!index\.php$).*\.php$">
+  Require all denied
+</FilesMatch>
