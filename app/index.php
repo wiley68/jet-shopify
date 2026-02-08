@@ -8,7 +8,7 @@
 
 header('Content-Type: application/json; charset=utf-8');
 
-// CORS – разрешаваме заявки от произход (при нужда ограничи до домейна на магазина)
+// CORS preflight – преди security, иначе OPTIONS ще получи 405
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Четене на тялото веднъж (fopen + stream – при някои сървъри работи по-надеждно от file_get_contents)
+// Четене на тялото веднъж – нужен е jet_id за rate limit в security
 $jetId = null;
 $contentType = $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
 $handler = fopen('php://input', 'r');
@@ -40,7 +40,6 @@ if ($handler !== false) {
 }
 $rawInput = ($rawInput !== false) ? $rawInput : '';
 
-// JSON: по Content-Type или ако тялото започва с '{' (при липсваща заглавка сървърът може да не подава Content-Type)
 if ($rawInput !== '' && (strpos($contentType, 'application/json') !== false || strpos(trim($rawInput), '{') === 0)) {
     $data = json_decode($rawInput, true);
     if (is_array($data) && isset($data['jet_id'])) {
@@ -56,6 +55,9 @@ if ($jetId === null && $rawInput !== '') {
         $jetId = trim((string) $parsed['jet_id']);
     }
 }
+
+require_once __DIR__ . '/security.php';
+perform_security_checks($jetId);
 
 $response = [
     'ok' => true,
