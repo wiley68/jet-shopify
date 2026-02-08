@@ -1,0 +1,24 @@
+# ПБ Лични Финанси API – защита на сървърно ниво
+# Само index.php; само POST (и OPTIONS за CORS preflight); блокиране на ботове/сканери
+
+RewriteEngine On
+
+# Блокирай празен или подозрителен User-Agent
+RewriteCond %{HTTP_USER_AGENT} ^$ [OR]
+RewriteCond %{HTTP_USER_AGENT} ^-
+RewriteRule .* - [F,L]
+
+# Блокирай известни ботове/сканери (без дубликати)
+RewriteCond %{HTTP_USER_AGENT} (bot|crawler|spider|scraper|curl|wget|python|java|perl|ruby|go-http|scrapy|mechanize|headless|phantom|selenium|webdriver|postman|insomnia|apache-httpclient|okhttp|libwww-perl|masscan|nmap|nikto|sqlmap|dirbuster|gobuster|burp|zap|nessus|openvas|acunetix|netsparker|appscan|qualys|rapid7|metasploit|havij|pangolin|sqlsus|sqlninja|w3af|skipfish|wapiti|arachni|^Mozilla$|^curl|^Wget|^Java|^Go-http|^HTTP|^Lynx|^Links|^w3m) [NC]
+RewriteRule .* - [F,L]
+
+# Разреши само index.php
+RewriteRule !^index\.php$ - [F,L]
+
+# Разреши само POST и OPTIONS (OPTIONS за CORS preflight от браузъра)
+RewriteCond %{REQUEST_METHOD} !POST
+RewriteCond %{REQUEST_METHOD} !OPTIONS
+RewriteRule ^index\.php$ - [F,L]
+
+# Лимит на тялото на заявката (~64KB)
+LimitRequestBody 65536
