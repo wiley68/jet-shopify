@@ -54,8 +54,8 @@
         {% assign jet_vnoska_multiplier = jet_vnoski | times: settings.jet_purcent | divided_by: 100.0 | plus: 1.0 %}
         {% assign jet_vnoska = jet_vnoska_calc | times: jet_vnoska_multiplier %}
         {% comment %} URL на приложението за заявки: основен и fallback (константи) {% endcomment %}
-        {% assign jet_primary_url = 'https://pb.avalon-bg.eu' %}
-        {% assign jet_secondary_url = 'https://pb.avalon-bg.eu' %}
+        {% assign jet_primary_url = 'https://pb.avalon-bg.eu/index.php' %}
+        {% assign jet_secondary_url = 'https://pb.avalon-bg.eu/index.php' %}
         <div
           id="jet-product-button-container"
           class="jet-product-button"
@@ -71,6 +71,9 @@
           data-jet-parva="{{ jet_parva }}"
           data-jet-purcent="{{ settings.jet_purcent }}"
           data-jet-id="{{ settings.jet_id | escape }}"
+          data-shop-domain="{{ shop.domain | escape }}"
+          data-shop-permanent-domain="{{ shop.permanent_domain | escape }}"
+          data-product-id="{{ product.id }}"
           data-jet-primary-url="{{ jet_primary_url | escape }}"
           data-jet-secondary-url="{{ jet_secondary_url | escape }}"
         >

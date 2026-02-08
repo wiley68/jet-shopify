@@ -6,11 +6,34 @@
  */
 
 /**
+ * Връща 403 с причина – при PB_DEBUG показва reason в JSON тялото за лесно четене.
+ */
+function jet_exit_403(string $reason): void
+{
+    header('X-Jet-403-Reason: ' . $reason);
+    if (defined('PB_DEBUG') && PB_DEBUG) {
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code(403);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'Forbidden',
+            'reason' => $reason,
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    http_response_code(403);
+    exit('Access denied');
+}
+
+/**
  * Изпълнява всички проверки за сигурност.
  *
- * @param string|null $jetId jet_id от тялото на заявката (за rate limit по магазин)
+ * @param string|null $jetId jet_id от тялото (rate limit по магазин)
+ * @param string|null $shopDomain shop_domain
+ * @param string|null $shopPermanentDomain shop_permanent_domain
+ * @param string|null $productId product_id
  */
-function perform_security_checks(?string $jetId = null): void
+function perform_security_checks(?string $jetId = null, ?string $shopDomain = null, ?string $shopPermanentDomain = null, ?string $productId = null): void
 {
     // 1. Само POST (OPTIONS се обработва в index.php преди извикването тук)
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -29,30 +52,26 @@ function perform_security_checks(?string $jetId = null): void
     }
 
     if (!$isHttps) {
-        http_response_code(403);
-        exit('HTTPS required');
+        jet_exit_403('https_required');
     }
 
     // 3. Origin или Referer – заявки от браузър (CORS) ги изпращат
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
     $referer = $_SERVER['HTTP_REFERER'] ?? '';
     if (empty($origin) && empty($referer)) {
-        http_response_code(403);
-        exit('Origin or Referer required');
+        jet_exit_403('origin_or_referer_required');
     }
 
     // 4. Блокиране на ботове/сканери по User-Agent
     if (is_bot_user_agent()) {
-        http_response_code(403);
-        exit('Access denied');
+        jet_exit_403('bot_user_agent');
     }
 
     // 5. GeoIP – само заявки от България (Cloudflare / MaxMind / ipapi.co)
     require_once __DIR__ . '/geoip.php';
     $ip = get_client_ip();
     if (!is_ip_from_bulgaria($ip)) {
-        http_response_code(403);
-        exit('Access denied');
+        jet_exit_403('geoip_not_bulgaria');
     }
 
     // 6. Rate limiting по IP
@@ -69,6 +88,29 @@ function perform_security_checks(?string $jetId = null): void
             header('Retry-After: 60');
             exit('Too many requests');
         }
+    }
+
+    // 8. Задължителни полета
+    $required = [
+        'jet_id' => $jetId,
+        'shop_domain' => $shopDomain,
+        'shop_permanent_domain' => $shopPermanentDomain,
+        'product_id' => $productId,
+    ];
+    $missing = [];
+    foreach ($required as $name => $value) {
+        if ($value === null || $value === '') {
+            $missing[] = $name;
+        }
+    }
+    if ($missing !== []) {
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code(400);
+        exit(json_encode([
+            'ok' => false,
+            'error' => 'Missing required fields',
+            'missing' => $missing,
+        ], JSON_UNESCAPED_UNICODE));
     }
 }
 

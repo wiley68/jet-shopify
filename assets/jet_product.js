@@ -835,13 +835,21 @@
     var container = document.getElementById('jet-product-button-container');
     if (!container) return;
     var jetId = (container.dataset.jetId || '').trim();
+    var shopDomain = (container.dataset.shopDomain || '').trim();
+    var shopPermanentDomain = (container.dataset.shopPermanentDomain || '').trim();
+    var productId = (container.dataset.productId ?? '').toString().trim();
     var primaryUrl = (container.dataset.jetPrimaryUrl || '').trim();
     var secondaryUrl = (container.dataset.jetSecondaryUrl || '').trim();
     if (!primaryUrl) {
       console.log('[Jet] Debug: jet_id=', jetId, '(primary URL не е зададен в снипета)');
       return;
     }
-    var body = JSON.stringify({ jet_id: jetId });
+    var body = JSON.stringify({
+      jet_id: jetId,
+      shop_domain: shopDomain,
+      shop_permanent_domain: shopPermanentDomain,
+      product_id: productId
+    });
     var opts = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body };
 
     /** @param {string} url */

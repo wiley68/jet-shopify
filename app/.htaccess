@@ -9,16 +9,18 @@ RewriteCond %{HTTP_USER_AGENT} ^-
 RewriteRule .* - [F,L]
 
 # Блокирай известни ботове/сканери (без дубликати)
-RewriteCond %{HTTP_USER_AGENT} (bot|crawler|spider|scraper|curl|wget|python|java|perl|ruby|go-http|scrapy|mechanize|headless|phantom|selenium|webdriver|postman|insomnia|apache-httpclient|okhttp|libwww-perl|masscan|nmap|nikto|sqlmap|dirbuster|gobuster|burp|zap|nessus|openvas|acunetix|netsparker|appscan|qualys|rapid7|metasploit|havij|pangolin|sqlsus|sqlninja|w3af|skipfish|wapiti|arachni|^Mozilla$|^curl|^Wget|^Java|^Go-http|^HTTP|^Lynx|^Links|^w3m) [NC]
+RewriteCond %{HTTP_USER_AGENT} (bot|crawler|spider|scraper|curl|wget|python|perl|ruby|go-http|scrapy|mechanize|headless|phantom|selenium|webdriver|postman|insomnia|apache-httpclient|okhttp|libwww-perl|masscan|nmap|nikto|sqlmap|dirbuster|gobuster|burp|zap|nessus|openvas|acunetix|netsparker|appscan|qualys|rapid7|metasploit|havij|pangolin|sqlsus|sqlninja|w3af|skipfish|wapiti|arachni|^Mozilla$|^curl|^Wget|^Java[^S]|^Go-http|^HTTP|^Lynx|^Links|^w3m) [NC]
 RewriteRule .* - [F,L]
 
-# Разреши само index.php
-RewriteRule !^index\.php$ - [F,L]
+# Разреши само index.php или корен (/, или празен път на някои сървъри)
+RewriteCond %{REQUEST_URI} !^/(index\.php)?$ [NC]
+RewriteCond %{REQUEST_URI} !^$
+RewriteRule .* - [F,L]
 
-# Разреши само POST и OPTIONS (OPTIONS за CORS preflight от браузъра)
-RewriteCond %{REQUEST_METHOD} !POST
-RewriteCond %{REQUEST_METHOD} !OPTIONS
-RewriteRule ^index\.php$ - [F,L]
+# Разреши само POST и OPTIONS (case-insensitive – някои сървъри подават post/options)
+RewriteCond %{REQUEST_METHOD} !^POST$ [NC]
+RewriteCond %{REQUEST_METHOD} !^OPTIONS$ [NC]
+RewriteRule .* - [F,L]
 
 # Лимит на тялото на заявката (~64KB)
 LimitRequestBody 65536
