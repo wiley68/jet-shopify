@@ -57,6 +57,35 @@
   }
 
   /**
+   * Показва кастомен alert (чист JS, без jQuery). Еднакъв вид за всички модули.
+   * @param {string} message - Текст за показване
+   * @param {boolean|function(): void} [exit] - Ако е true или функция: при клик на „Добре“ се извиква функцията (или затваряне на попъпа). Ако е функция, тя се извиква при затваряне.
+   * @returns {void}
+   */
+  function jetShowCustomAlert(message, exit) {
+    var jetAlertBox = document.createElement('div');
+    jetAlertBox.id = 'jet_alert_box';
+    jetAlertBox.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:20px;border-radius:5px;box-shadow:0 0 10px rgba(0,0,0,0.1);z-index:5000001;width:300px;text-align:center;';
+    var jetMessageText = document.createElement('p');
+    jetMessageText.textContent = message;
+    jetMessageText.style.cssText = 'color:#14532d;margin:0;';
+    jetAlertBox.appendChild(jetMessageText);
+    var jetCloseButton = document.createElement('button');
+    jetCloseButton.textContent = 'Добре';
+    jetCloseButton.type = 'button';
+    jetCloseButton.style.cssText = 'font-weight:500;margin-top:20px;padding:10px 20px;border:none;background:#166534;color:#fff;border-radius:3px;cursor:pointer;';
+    jetCloseButton.addEventListener('click', function () {
+      if (jetAlertBox.parentNode) jetAlertBox.parentNode.removeChild(jetAlertBox);
+      var overlay = document.getElementById('jet_alert_overlay');
+      if (overlay) overlay.classList.remove('show');
+      if (typeof exit === 'function') exit();
+      else if (exit) closeJetPopup();
+    });
+    jetAlertBox.appendChild(jetCloseButton);
+    document.body.appendChild(jetAlertBox);
+  }
+
+  /**
    * Изчислява ГПР (%) и ГЛП (%) от брой вноски, месечна вноска и общ размер на кредита (в евро)
    * @param {number} vnoski - Брой вноски
    * @param {number} monthlyVnoskaEuro - Месечна вноска в евро
@@ -465,15 +494,26 @@
       gdprCheckbox.checked = false;
       gdprCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
     }
+    // Запазваме само избрания брой вноски от попъпа (първоначалната вноска винаги се нулира)
+    var vnoskiSelect = document.getElementById('jet-vnoski-select');
+    var currentVnoski = undefined;
+    if (vnoskiSelect && vnoskiSelect instanceof HTMLSelectElement) {
+      currentVnoski = parseInt(vnoskiSelect.value || '12', 10) || 12;
+    }
+    // Нулираме първоначалната вноска (и в попъпа, и в глобалната променлива)
     jet_parva = 0;
     var parvaInput = document.getElementById('jet-parva-input');
     if (parvaInput && parvaInput instanceof HTMLInputElement) {
       parvaInput.value = '0';
     }
+    // Обновяваме текста под бутона: запазваме избрания брой вноски, но нулираме първоначалната вноска
     var container = document.getElementById('jet-product-button-container');
     if (container) {
       var productPrice = parseFloat(container.dataset.productPrice || '0');
-      if (productPrice) updateVnoskaText(productPrice, 0);
+      if (productPrice) {
+        // Запазваме избрания брой вноски, но винаги нулираме първоначалната вноска (0)
+        updateVnoskaText(productPrice, 0, currentVnoski);
+      }
     }
   }
 
@@ -855,9 +895,25 @@
       gdprCheckboxCard.checked = false;
       gdprCheckboxCard.dispatchEvent(new Event('change', { bubbles: true }));
     }
+    // Запазваме само избрания брой вноски от попъпа (първоначалната вноска винаги се нулира)
+    var vnoskiSelectCard = document.getElementById('jet-vnoski-select-card');
+    var currentVnoskiCard = undefined;
+    if (vnoskiSelectCard && vnoskiSelectCard instanceof HTMLSelectElement) {
+      currentVnoskiCard = parseInt(vnoskiSelectCard.value || '12', 10) || 12;
+    }
+    // Нулираме първоначалната вноска в попъпа
     var parvaInputCard = document.getElementById('jet-parva-input-card');
     if (parvaInputCard && parvaInputCard instanceof HTMLInputElement) {
       parvaInputCard.value = '0';
+    }
+    // Обновяваме текста под бутона за картата: запазваме избрания брой вноски, но нулираме първоначалната вноска
+    var containerCard = document.getElementById('jet-product-button-card-container');
+    if (containerCard) {
+      var productPriceCard = parseFloat(containerCard.dataset.productPrice || '0');
+      if (productPriceCard) {
+        // Запазваме избрания брой вноски, но винаги нулираме първоначалната вноска (0)
+        updateVnoskaText(productPriceCard, 0, currentVnoskiCard);
+      }
     }
     var addToCartCardBtn = document.getElementById('jet-add-to-cart-btn-card');
     if (addToCartCardBtn && addToCartCardBtn instanceof HTMLButtonElement) {
@@ -976,6 +1032,9 @@
     doFetch(primaryUrl)
       .then(function (data) {
         console.log('[Jet] App response (primary):', data);
+        jetShowCustomAlert('Успешно изпратихте Вашата заявка за лизинг към ПБ Лични Финанси. Очаквайте контакт за потвърждаване на направената от Вас заявка.', function () {
+          if (isCard) closeJetPopupCard(); else closeJetPopup();
+        });
       })
       .catch(function (err) {
         console.warn('[Jet] Primary failed:', err);
@@ -983,6 +1042,9 @@
           doFetch(secondaryUrl)
             .then(function (data) {
               console.log('[Jet] App response (fallback):', data);
+              jetShowCustomAlert('Заявката е изпратена успешно. Ще се свържем с вас скоро.', function () {
+                if (isCard) closeJetPopupCard(); else closeJetPopup();
+              });
             })
             .catch(function (err2) {
               console.warn('[Jet] Fallback failed:', err2);
