@@ -132,6 +132,8 @@
     const container = document.getElementById('jet-cart-button-container');
     if (!container) return;
 
+    // Проверяваме дали трябва да показваме BGN (от снипета се подава в data атрибут или от настройките)
+    const showBgn = container.dataset.jetSecondaryCurrency === 'true';
     const jetMinVnoski = parseFloat(container.dataset.jetMinVnoski || '125') || 125;
     const jetVnoskiDefault = parseFloat(container.dataset.jetVnoskiDefault || '12') || 12;
     const currentParva = parva !== undefined ? parva : jet_parva;
@@ -145,6 +147,17 @@
         ? calculateVnoski(productPrice, jetMinVnoski, jetVnoskiDefault, currentParva)
         : vnoski;
 
+    /** Връща HTML за ред вноска: основен текст + опционално span с лв. (по-малък шрифт) */
+    /** @param {string} jetVnoskaFormatted @param {number} jetVnoskaCents */
+    function vnoskaLineContent(jetVnoskaFormatted, jetVnoskaCents) {
+      var main = vnoskiResolved + ' x ' + jetVnoskaFormatted + ' €';
+      if (showBgn) {
+        var bgn = (jetVnoskaCents / 100) * JET_EUR_TO_BGN;
+        return main + ' <span class="jet-vnoska-bgn">(' + bgn.toFixed(2) + ' лв.)</span>';
+      }
+      return main;
+    }
+
     // Обновяваме елементите за редовен лизинг (използва jet_purcent)
     const regularElements = document.querySelectorAll('.jet-vnoska-regular');
     regularElements.forEach(function (element) {
@@ -152,7 +165,12 @@
         const jetPurcent = parseFloat(element.dataset.jetPurcent || '0') || 0;
         const jetVnoskaCents = calculateJetVnoska(jetTotalCreditPrice, vnoskiResolved, jetPurcent);
         const jetVnoskaFormatted = formatEuro(jetVnoskaCents);
-        element.textContent = vnoskiResolved + ' x ' + jetVnoskaFormatted + ' €';
+        var content = vnoskaLineContent(jetVnoskaFormatted, jetVnoskaCents);
+        if (showBgn) {
+          element.innerHTML = content;
+        } else {
+          element.textContent = content;
+        }
         element.dataset.vnoski = String(vnoskiResolved);
         element.dataset.jetVnoska = String(jetVnoskaCents);
       }
@@ -165,7 +183,12 @@
         const jetPurcentCard = parseFloat(element.dataset.jetPurcentCard || '0') || 0;
         const jetVnoskaCents = calculateJetVnoska(jetTotalCreditPrice, vnoskiResolved, jetPurcentCard);
         const jetVnoskaFormatted = formatEuro(jetVnoskaCents);
-        element.textContent = vnoskiResolved + ' x ' + jetVnoskaFormatted + ' €';
+        var content = vnoskaLineContent(jetVnoskaFormatted, jetVnoskaCents);
+        if (showBgn) {
+          element.innerHTML = content;
+        } else {
+          element.textContent = content;
+        }
         element.dataset.vnoski = String(vnoskiResolved);
         element.dataset.jetVnoska = String(jetVnoskaCents);
       }
@@ -272,15 +295,26 @@
       gdprCheckbox.checked = false;
       gdprCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
     }
+    // Запазваме само избрания брой вноски от попъпа (първоначалната вноска винаги се нулира)
+    var vnoskiSelect = document.getElementById('jet-vnoski-select-cart');
+    var currentVnoski = undefined;
+    if (vnoskiSelect && vnoskiSelect instanceof HTMLSelectElement) {
+      currentVnoski = parseInt(vnoskiSelect.value || '12', 10) || 12;
+    }
+    // Нулираме първоначалната вноска (и в попъпа, и в глобалната променлива)
     jet_parva = 0;
     var parvaInput = document.getElementById('jet-parva-input-cart');
     if (parvaInput && parvaInput instanceof HTMLInputElement) {
       parvaInput.value = '0';
     }
+    // Обновяваме текста под бутона: запазваме избрания брой вноски, но нулираме първоначалната вноска
     var container = document.getElementById('jet-cart-button-container');
     if (container) {
       var productPrice = parseFloat(container.dataset.productPrice || '0');
-      if (productPrice) updateVnoskaText(productPrice, 0);
+      if (productPrice) {
+        // Запазваме избрания брой вноски, но винаги нулираме първоначалната вноска (0)
+        updateVnoskaText(productPrice, 0, currentVnoski);
+      }
     }
   }
 
@@ -644,9 +678,25 @@
       gdprCheckboxCard.checked = false;
       gdprCheckboxCard.dispatchEvent(new Event('change', { bubbles: true }));
     }
+    // Запазваме само избрания брой вноски от попъпа (първоначалната вноска винаги се нулира)
+    var vnoskiSelectCard = document.getElementById('jet-vnoski-select-card-cart');
+    var currentVnoskiCard = undefined;
+    if (vnoskiSelectCard && vnoskiSelectCard instanceof HTMLSelectElement) {
+      currentVnoskiCard = parseInt(vnoskiSelectCard.value || '12', 10) || 12;
+    }
+    // Нулираме първоначалната вноска в попъпа
     var parvaInputCard = document.getElementById('jet-parva-input-card-cart');
     if (parvaInputCard && parvaInputCard instanceof HTMLInputElement) {
       parvaInputCard.value = '0';
+    }
+    // Обновяваме текста под бутона за картата: запазваме избрания брой вноски, но нулираме първоначалната вноска
+    var containerCard = document.getElementById('jet-cart-button-card-container');
+    if (containerCard) {
+      var productPriceCard = parseFloat(containerCard.dataset.productPrice || '0');
+      if (productPriceCard) {
+        // Запазваме избрания брой вноски, но винаги нулираме първоначалната вноска (0)
+        updateVnoskaText(productPriceCard, 0, currentVnoskiCard);
+      }
     }
   }
 
@@ -1079,7 +1129,223 @@
       initPopupCard();
     }
 
-    // На страница количка няма промяна на вариант/количество – цената е общата сума в количката
+    // Функция за обновяване на цената от количката
+    function updateCartTotal() {
+      // Изчакваме малко за да се обнови DOM-ът от framework-а
+      setTimeout(function () {
+        var cartTotalCents = 0;
+        
+        // Метод 1: Опитваме се да вземем общата сума от различни селектори в DOM-а
+        var selectors = [
+          '[data-cart-total]',
+          '.cart-total',
+          '.cart__total',
+          '[id*="cart-total"]',
+          '[id*="cartTotal"]',
+          '.cart-summary [data-total-price]',
+          '.cart-summary .total-price',
+          'cart-totals [data-total-price]',
+          'cart-totals .total-price'
+        ];
+        
+        for (var i = 0; i < selectors.length; i++) {
+          var selector = selectors[i];
+          if (!selector) continue;
+          var cartTotalEl = document.querySelector(selector);
+          if (cartTotalEl) {
+            // Първо проверяваме data атрибути
+            var dataTotal = cartTotalEl.getAttribute('data-cart-total') || 
+                           cartTotalEl.getAttribute('data-total-price') ||
+                           cartTotalEl.getAttribute('data-total');
+            if (dataTotal) {
+              var num = parseFloat(dataTotal);
+              if (!isNaN(num) && num > 0) {
+                cartTotalCents = Math.round(num);
+                break;
+              }
+            }
+            
+            // Ако няма data атрибут, опитваме се да извлечем от текста
+            var totalText = cartTotalEl.textContent || '';
+            if (totalText) {
+              // Премахваме всичко освен числа, точка и запетая
+              var cleanText = totalText.replace(/[^\d,.]/g, '');
+              if (cleanText) {
+                // Обработваме различни формати: "100.00", "100,00", "1.000,00"
+                var parts = cleanText.split(/[,.]/);
+                var numStr = '';
+                if (parts.length === 2) {
+                  // Формат "100.00" или "100,00"
+                  numStr = parts[0] + '.' + parts[1];
+                } else if (parts.length > 2) {
+                  // Формат "1.000,00" - последните две части са десетични
+                  numStr = parts.slice(0, -2).join('') + '.' + parts.slice(-2).join('');
+                } else {
+                  numStr = cleanText;
+                }
+                var num = parseFloat(numStr);
+                if (!isNaN(num) && num > 0) {
+                  // Ако числото е малко (под 1000), вероятно е в евро, умножаваме по 100
+                  if (num < 1000) {
+                    cartTotalCents = Math.round(num * 100);
+                  } else {
+                    cartTotalCents = Math.round(num);
+                  }
+                  break;
+                }
+              }
+            }
+          }
+        }
+        
+        // Метод 2: От data атрибут на контейнера (ако вече е обновен)
+        if (cartTotalCents === 0 && container) {
+          var currentPrice = parseFloat(container.dataset.productPrice || '0');
+          if (currentPrice > 0) {
+            cartTotalCents = currentPrice;
+          }
+        }
+        
+        // Ако намерихме нова сума и е различна от текущата, обновяваме
+        if (cartTotalCents > 0 && container) {
+          var currentPrice = parseFloat(container.dataset.productPrice || '0');
+          if (cartTotalCents !== currentPrice) {
+            container.dataset.productPrice = String(cartTotalCents);
+            // Обновяваме и картата контейнера ако съществува
+            var containerCard = document.getElementById('jet-cart-button-card-container');
+            if (containerCard) {
+              containerCard.dataset.productPrice = String(cartTotalCents);
+            }
+            updateVnoskaText(cartTotalCents, jet_parva);
+            
+            // Ако popup-ът е отворен, обновяваме го
+            const overlay = document.getElementById('jet-popup-overlay-cart');
+            if (overlay && overlay.style.display === 'flex') {
+              setTimeout(function () {
+                openJetPopup();
+              }, 100);
+            }
+            const overlayCard = document.getElementById('jet-popup-overlay-card-cart');
+            if (overlayCard && overlayCard.style.display === 'flex') {
+              setTimeout(function () {
+                openJetPopupCard();
+              }, 100);
+            }
+          }
+        }
+      }, 300);
+    }
+
+    // Прихващаме промяна на количеството в количката
+    function handleCartQuantityChange() {
+      updateCartTotal();
+    }
+
+    // Прихващаме change event за input полетата за количество
+    document.addEventListener('change', function (event) {
+      const target = event.target;
+      if (target instanceof HTMLInputElement && (target.name === 'updates[]' || target.name.includes('updates'))) {
+        handleCartQuantityChange();
+      }
+    }, true);
+
+    // Прихващаме input event за по-бърза реакция
+    document.addEventListener('input', function (event) {
+      const target = event.target;
+      if (target instanceof HTMLInputElement && (target.name === 'updates[]' || target.name.includes('updates'))) {
+        handleCartQuantityChange();
+      }
+    }, true);
+
+    // Прихващаме click събития на бутоните за количество в cart-quantity-selector-component
+    document.addEventListener('click', function (event) {
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const button = target.closest('button[name="plus"], button[name="minus"]');
+        if (button && button instanceof HTMLButtonElement) {
+          const quantitySelector = button.closest('cart-quantity-selector-component');
+          if (quantitySelector) {
+            handleCartQuantityChange();
+          }
+        }
+      }
+    }, true);
+
+    // MutationObserver за да следя промени в value атрибута на input полетата за количество
+    function setupCartQuantityObserver() {
+      var quantityInputs = document.querySelectorAll('input[name="updates[]"], input[type="number"][name*="updates"]');
+      if (quantityInputs.length === 0) {
+        // Ако още няма input полета, опитваме се отново след малко
+        setTimeout(setupCartQuantityObserver, 500);
+        return;
+      }
+
+      quantityInputs.forEach(function (quantityInput) {
+        if (!(quantityInput instanceof HTMLInputElement)) return;
+        
+        var lastValue = quantityInput.value || '1';
+        var observer = new MutationObserver(function (mutations) {
+          mutations.forEach(function (mutation) {
+            if (mutation.type === 'attributes' && (mutation.attributeName === 'value' || mutation.attributeName === 'data-cart-quantity')) {
+              var target = mutation.target;
+              if (!(target instanceof HTMLInputElement)) return;
+              var currentValue = target.value || target.getAttribute('data-cart-quantity') || '1';
+              if (currentValue !== lastValue) {
+                lastValue = currentValue;
+                handleCartQuantityChange();
+              }
+            }
+          });
+        });
+
+        observer.observe(quantityInput, {
+          attributes: true,
+          attributeFilter: ['value', 'data-cart-quantity']
+        });
+
+        // Също следя промени в самия cart-quantity-selector-component
+        var quantitySelector = quantityInput.closest('cart-quantity-selector-component');
+        if (quantitySelector) {
+          observer.observe(quantitySelector, {
+            attributes: true,
+            childList: true,
+            subtree: true
+          });
+        }
+      });
+    }
+    setupCartQuantityObserver();
+
+    // MutationObserver за да следя промени в общата сума на количката
+    function setupCartTotalObserver() {
+      var cartTotalEl = document.querySelector('[data-cart-total], .cart-total, .cart__total, [id*="cart-total"], [id*="cartTotal"]');
+      if (!cartTotalEl) {
+        setTimeout(setupCartTotalObserver, 500);
+        return;
+      }
+
+      var lastText = cartTotalEl.textContent || '';
+      var observer = new MutationObserver(function (mutations) {
+        mutations.forEach(function (mutation) {
+          if (mutation.type === 'childList' || mutation.type === 'characterData') {
+            var el = cartTotalEl;
+            if (!el) return;
+            var currentText = el.textContent || '';
+            if (currentText !== lastText) {
+              lastText = currentText;
+              handleCartQuantityChange();
+            }
+          }
+        });
+      });
+
+      observer.observe(cartTotalEl, {
+        childList: true,
+        subtree: true,
+        characterData: true
+      });
+    }
+    setupCartTotalObserver();
 
     const jetCart = {};
     jetCart.calculateVnoski = calculateVnoski;

@@ -3,9 +3,22 @@
   Рендира се с: {% render 'jet-cart-button' %}
 {% endcomment %}
 {% if settings.jet_status_in and shop.currency == 'EUR' %}
+  {% comment %}В редактор режим показваме снипета дори при празна количка{% endcomment %}
+  {% assign is_design_mode = false %}
+  {% if request.design_mode %}
+    {% assign is_design_mode = true %}
+  {% endif %}
+
   {% assign cart_total_cents = cart.total_price %}
   {% assign cart_total_euro = cart_total_cents | divided_by: 100.0 %}
-  {% if cart_total_euro >= settings.jet_minprice %}
+
+  {% comment %}В редактор режим използваме примерна стойност ако количката е празна{% endcomment %}
+  {% if is_design_mode and cart_total_euro < settings.jet_minprice %}
+    {% assign cart_total_euro = settings.jet_minprice | plus: 100.0 %}
+    {% assign cart_total_cents = cart_total_euro | times: 100.0 | round %}
+  {% endif %}
+
+  {% if cart_total_euro >= settings.jet_minprice or is_design_mode %}
     {{ 'jet_cart.css' | asset_url | stylesheet_tag }}
     <script src="{{ 'jet_cart.js' | asset_url }}" defer></script>
 
@@ -34,6 +47,7 @@
       data-jet-vnoski="{{ jet_vnoski }}"
       data-jet-parva="{{ jet_parva }}"
       data-jet-purcent="{{ settings.jet_purcent }}"
+      data-jet-secondary-currency="{% if settings.jet_secondary_currency %}true{% else %}false{% endif %}"
     >
       <img
         src="{{ 'jet.png' | asset_url }}"
