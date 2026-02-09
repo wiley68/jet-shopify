@@ -972,10 +972,11 @@
   /**
    * Изпраща POST заявка към приложението (app) с всички полета и items.
    * @param {boolean} [isCard=false] true ако изпращаме от попъпа за кредитна карта
+   * @returns {Promise<boolean>}
    */
   function sendJetRequestToApp(isCard) {
     var container = document.getElementById('jet-product-button-container');
-    if (!container) return;
+    if (!container) return Promise.reject(new Error('Container not found'));
     var jetId = (container.dataset.jetId || '').trim();
     var shopDomain = (container.dataset.shopDomain || '').trim();
     var shopPermanentDomain = (container.dataset.shopPermanentDomain || '').trim();
@@ -1037,7 +1038,7 @@
 
     if (!primaryUrl) {
       console.log('[Jet] Debug: jet_id=', jetId, '(primary URL не е зададен в снипета)');
-      return;
+      return Promise.reject(new Error('Primary URL not set'));
     }
     var payload = {
       jet_id: jetId,
@@ -1068,27 +1069,31 @@
         });
     }
 
-    doFetch(primaryUrl)
+    return doFetch(primaryUrl)
       .then(function (data) {
         console.log('[Jet] App response (primary):', data);
         jetShowCustomAlert('Успешно изпратихте Вашата заявка за лизинг към ПБ Лични Финанси. Очаквайте контакт за потвърждаване на направената от Вас заявка.', function () {
           if (isCard) closeJetPopupCard(); else closeJetPopup();
         });
+        return true;
       })
       .catch(function (err) {
         console.warn('[Jet] Primary failed:', err);
         if (secondaryUrl && secondaryUrl !== primaryUrl) {
-          doFetch(secondaryUrl)
+          return doFetch(secondaryUrl)
             .then(function (data) {
               console.log('[Jet] App response (fallback):', data);
               jetShowCustomAlert('Заявката е изпратена успешно. Ще се свържем с вас скоро.', function () {
                 if (isCard) closeJetPopupCard(); else closeJetPopup();
               });
+              return true;
             })
             .catch(function (err2) {
               console.warn('[Jet] Fallback failed:', err2);
+              throw err2;
             });
         }
+        throw err;
       });
   }
 
@@ -1330,7 +1335,26 @@
       step2SubmitBtn.disabled = true;
       step2SubmitBtn.addEventListener('click', function () {
         if (step2SubmitBtn.disabled) return;
-        sendJetRequestToApp(false);
+
+        // Блокираме бутона и показваме лоадер
+        if (!step2SubmitBtn) return;
+        step2SubmitBtn.disabled = true;
+        var originalText = step2SubmitBtn.textContent || '';
+        step2SubmitBtn.innerHTML = '<span class="jet-loader-spinner"></span> Изпращане...';
+        step2SubmitBtn.classList.add('jet-btn-loading');
+
+        sendJetRequestToApp(false)
+          .then(function () {
+            // Успешно изпратено - бутонът остава блокиран, попъпът се затваря
+          })
+          .catch(function (err) {
+            // При грешка разблокираме бутона и връщаме оригиналния текст
+            if (step2SubmitBtn) {
+              step2SubmitBtn.disabled = false;
+              step2SubmitBtn.textContent = originalText;
+              step2SubmitBtn.classList.remove('jet-btn-loading');
+            }
+          });
       });
     }
   }
@@ -1530,7 +1554,26 @@
       step2SubmitBtnCard.disabled = true;
       step2SubmitBtnCard.addEventListener('click', function () {
         if (submitBtnRefCard.disabled) return;
-        sendJetRequestToApp(true);
+
+        // Блокираме бутона и показваме лоадер
+        if (!submitBtnRefCard) return;
+        submitBtnRefCard.disabled = true;
+        var originalText = submitBtnRefCard.textContent || '';
+        submitBtnRefCard.innerHTML = '<span class="jet-loader-spinner"></span> Изпращане...';
+        submitBtnRefCard.classList.add('jet-btn-loading');
+
+        sendJetRequestToApp(true)
+          .then(function () {
+            // Успешно изпратено - бутонът остава блокиран, попъпът се затваря
+          })
+          .catch(function (err) {
+            // При грешка разблокираме бутона и връщаме оригиналния текст
+            if (submitBtnRefCard) {
+              submitBtnRefCard.disabled = false;
+              submitBtnRefCard.textContent = originalText;
+              submitBtnRefCard.classList.remove('jet-btn-loading');
+            }
+          });
       });
     }
   }

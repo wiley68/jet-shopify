@@ -382,6 +382,30 @@ select.jet-popup-select {
   background-color: #166534;
 }
 
+/* Лоадер спинер в бутона при изпращане */
+.jet-loader-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(240, 253, 244, 0.3);
+  border-top-color: #f0fdf4;
+  border-radius: 50%;
+  animation: jet-spin 0.8s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+@keyframes jet-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.jet-btn-loading {
+  pointer-events: none;
+  opacity: 0.8;
+}
+
 /* Разделител от край до край на попъпа – излиза извън padding на content */
 .jet-popup-divider {
   height: 1px;

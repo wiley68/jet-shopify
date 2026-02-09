@@ -950,7 +950,25 @@
       step2SubmitBtn.disabled = true;
       step2SubmitBtn.addEventListener('click', function () {
         if (step2SubmitBtn.disabled) return;
-        sendJetRequestToAppCart(false);
+
+        // Блокираме бутона и показваме лоадер
+        step2SubmitBtn.disabled = true;
+        var originalText = step2SubmitBtn.textContent || '';
+        step2SubmitBtn.innerHTML = '<span class="jet-loader-spinner"></span> Изпращане...';
+        step2SubmitBtn.classList.add('jet-btn-loading');
+
+        sendJetRequestToAppCart(false)
+          .then(function () {
+            // Успешно изпратено - бутонът остава блокиран, попъпът се затваря
+          })
+          .catch(function (err /** @type {any} */) {
+            // При грешка разблокираме бутона и връщаме оригиналния текст
+            if (step2SubmitBtn) {
+              step2SubmitBtn.disabled = false;
+              step2SubmitBtn.textContent = originalText;
+              step2SubmitBtn.classList.remove('jet-btn-loading');
+            }
+          });
       });
     }
   }
@@ -960,11 +978,11 @@
    * @param {boolean} [isCard=false] true ако изпращаме от попъпа за кредитна карта
    */
   function sendJetRequestToAppCart(isCard) {
-    var container = isCard 
+    var container = isCard
       ? document.getElementById('jet-cart-button-card-container')
       : document.getElementById('jet-cart-button-container');
-    if (!container) return;
-    
+    if (!container) return Promise.reject(new Error('Container not found'));
+
     var jetId = (container.dataset.jetId || '').trim();
     var shopDomain = (container.dataset.shopDomain || '').trim();
     var shopPermanentDomain = (container.dataset.shopPermanentDomain || '').trim();
@@ -1000,7 +1018,7 @@
     var jetParvaFromInput = (parvaInputEl instanceof HTMLInputElement && parvaInputEl.value) ? parvaInputEl.value.trim() : jetParva;
 
     // Вземаме продуктите от количката чрез Shopify Cart API
-    fetch('/cart.js')
+    return fetch('/cart.js')
       .then(function (res) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         return res.json();
@@ -1008,31 +1026,31 @@
       .then(function (cartData) {
         if (!cartData || !cartData.items || cartData.items.length === 0) {
           console.warn('[Jet] Cart is empty');
-          return;
+          throw new Error('Cart is empty');
         }
 
         // Създаваме масив от items с всички продукти от количката
         // В items изпращаме единичните цени, не общите
         var items = [];
         var calculatedTotalCents = 0;
-        
+
         for (var i = 0; i < cartData.items.length; i++) {
           var item = cartData.items[i];
           if (!item) continue;
-          
+
           var productId = item.product_id ? String(item.product_id) : '';
           var productTitle = item.product_title || item.title || '';
           var variantTitle = item.variant_title || '';
           var quantity = item.quantity || 1;
-          
+
           // Единичната цена (final_price е цената за един продукт след отстъпки)
           var unitPriceCents = item.final_price || item.price || 0;
           var unitPriceEur = (unitPriceCents / 100.0).toFixed(2);
-          
+
           // Изчисляваме общата сума за проверка (единична цена × количество)
           var linePriceCents = unitPriceCents * quantity;
           calculatedTotalCents += linePriceCents;
-          
+
           items.push({
             jet_product_id: productId,
             product_c_txt: productTitle,
@@ -1053,7 +1071,7 @@
 
         if (!primaryUrl) {
           console.log('[Jet] Debug: jet_id=', jetId, '(primary URL не е зададен в снипета)');
-          return;
+          throw new Error('Primary URL not set');
         }
 
         var payload = {
@@ -1073,7 +1091,7 @@
           jet_email_pbpf: jetEmailPbpf,
           jet_email_shop: jetEmailShop
         };
-        
+
         var body = JSON.stringify(payload);
         var opts = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body };
 
@@ -1086,31 +1104,36 @@
             });
         }
 
-        doFetch(primaryUrl)
+        return doFetch(primaryUrl)
           .then(function (data) {
             console.log('[Jet] App response (primary):', data);
             jetShowCustomAlert('Успешно изпратихте Вашата заявка за лизинг към ПБ Лични Финанси. Очаквайте контакт за потвърждаване на направената от Вас заявка.', function () {
               if (isCard) closeJetPopupCard(); else closeJetPopup();
             });
+            return true;
           })
           .catch(function (err) {
             console.warn('[Jet] Primary failed:', err);
             if (secondaryUrl && secondaryUrl !== primaryUrl) {
-              doFetch(secondaryUrl)
+              return doFetch(secondaryUrl)
                 .then(function (data) {
                   console.log('[Jet] App response (fallback):', data);
                   jetShowCustomAlert('Заявката е изпратена успешно. Ще се свържем с вас скоро.', function () {
                     if (isCard) closeJetPopupCard(); else closeJetPopup();
                   });
+                  return true;
                 })
                 .catch(function (err2) {
                   console.warn('[Jet] Fallback failed:', err2);
+                  throw err2;
                 });
             }
+            throw err;
           });
       })
       .catch(function (err) {
         console.error('[Jet] Failed to fetch cart:', err);
+        throw err;
       });
   }
 
@@ -1292,7 +1315,25 @@
       step2SubmitBtnCard.disabled = true;
       step2SubmitBtnCard.addEventListener('click', function () {
         if (submitBtnRefCard.disabled) return;
-        sendJetRequestToAppCart(true);
+
+        // Блокираме бутона и показваме лоадер
+        submitBtnRefCard.disabled = true;
+        var originalText = submitBtnRefCard.textContent || '';
+        submitBtnRefCard.innerHTML = '<span class="jet-loader-spinner"></span> Изпращане...';
+        submitBtnRefCard.classList.add('jet-btn-loading');
+
+        sendJetRequestToAppCart(true)
+          .then(function () {
+            // Успешно изпратено - бутонът остава блокиран, попъпът се затваря
+          })
+          .catch(function (err /** @type {any} */) {
+            // При грешка разблокираме бутона и връщаме оригиналния текст
+            if (submitBtnRefCard) {
+              submitBtnRefCard.disabled = false;
+              submitBtnRefCard.textContent = originalText;
+              submitBtnRefCard.classList.remove('jet-btn-loading');
+            }
+          });
       });
     }
   }
@@ -1322,7 +1363,7 @@
       // Изчакваме малко за да се обнови DOM-ът от framework-а
       setTimeout(function () {
         var cartTotalCents = 0;
-        
+
         // Метод 1: Опитваме се да вземем общата сума от различни селектори в DOM-а
         var selectors = [
           '[data-cart-total]',
@@ -1335,16 +1376,16 @@
           'cart-totals [data-total-price]',
           'cart-totals .total-price'
         ];
-        
+
         for (var i = 0; i < selectors.length; i++) {
           var selector = selectors[i];
           if (!selector) continue;
           var cartTotalEl = document.querySelector(selector);
           if (cartTotalEl) {
             // Първо проверяваме data атрибути (те са вече в центове)
-            var dataTotal = cartTotalEl.getAttribute('data-cart-total') || 
-                           cartTotalEl.getAttribute('data-total-price') ||
-                           cartTotalEl.getAttribute('data-total');
+            var dataTotal = cartTotalEl.getAttribute('data-cart-total') ||
+              cartTotalEl.getAttribute('data-total-price') ||
+              cartTotalEl.getAttribute('data-total');
             if (dataTotal) {
               var num = parseFloat(dataTotal);
               if (!isNaN(num) && num > 0) {
@@ -1353,13 +1394,13 @@
                 break;
               }
             }
-            
+
             // Ако няма data атрибут, опитваме се да извлечем от текста
             var totalText = cartTotalEl.textContent || '';
             if (totalText) {
               // Премахваме всичко освен числа, точка и запетая
               var priceMatch = totalText.replace(/[^\d,.]/g, '');
-              
+
               if (priceMatch) {
                 // Обработваме формат като "2.020,00" (точка за хиляди, запетая за десетични)
                 if (priceMatch.includes(',')) {
@@ -1375,7 +1416,7 @@
                     priceMatch = priceMatch.replace(/\./g, '');
                   }
                 }
-                
+
                 var priceValue = parseFloat(priceMatch);
                 if (!isNaN(priceValue) && priceValue > 0) {
                   // Винаги конвертираме от евро в центове (умножаваме по 100)
@@ -1386,7 +1427,7 @@
             }
           }
         }
-        
+
         // Метод 2: От data атрибут на контейнера (ако вече е обновен)
         if (cartTotalCents === 0 && container) {
           var currentPrice = parseFloat(container.dataset.productPrice || '0');
@@ -1394,7 +1435,7 @@
             cartTotalCents = currentPrice;
           }
         }
-        
+
         // Ако намерихме нова сума и е различна от текущата, обновяваме
         if (cartTotalCents > 0 && container) {
           var currentPrice = parseFloat(container.dataset.productPrice || '0');
@@ -1406,7 +1447,7 @@
               containerCard.dataset.productPrice = String(cartTotalCents);
             }
             updateVnoskaText(cartTotalCents, jet_parva);
-            
+
             // Ако popup-ът е отворен, обновяваме го
             const overlay = document.getElementById('jet-popup-overlay-cart');
             if (overlay && overlay.style.display === 'flex') {
@@ -1471,7 +1512,7 @@
 
       quantityInputs.forEach(function (quantityInput) {
         if (!(quantityInput instanceof HTMLInputElement)) return;
-        
+
         var lastValue = quantityInput.value || '1';
         var observer = new MutationObserver(function (mutations) {
           mutations.forEach(function (mutation) {

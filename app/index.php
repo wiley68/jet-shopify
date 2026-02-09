@@ -91,14 +91,38 @@ $body .= "ЕГН: {$payload['jet-step2-egn']};\r\n";
 $body .= "Телефон за връзка: {$payload['jet-step2-phone']};\r\n";
 $body .= "Имейл адрес: {$payload['jet-step2-email']};\r\n\r\n";
 
-if (isset($payload['items']) && is_array($payload['items']) && count($payload['items']) == 1) {
-    $item = $payload['items'][0];
-    $body .= "Данни за стоката:\r\n";
-    $body .= "Тип стока: {$item['product_c_txt']};\r\n";
-    $body .= "Марка: " . "({$item['jet_product_id']}) {$item['att_name']};\r\n";
-    $body .= "Единична цена с ДДС: {$item['product_p_txt']};\r\n";
-    $body .= "Брой стоки: {$item['jet_quantity']};\r\n";
-    $body .= "Обща сума с ДДС: " . number_format((float) $item['product_p_txt'] * (int) $item['jet_quantity'], 2, '.', '') . ";\r\n\r\n";
+$body .= "Данни за стоката:\r\n";
+$totalCartAmount = 0.0; // Обща сума на количката (за изчисляване на размера на кредита)
+
+if (isset($payload['items']) && is_array($payload['items'])) {
+    $itemsCount = count($payload['items']);
+
+    // Ако има само един продукт (от продуктова страница)
+    if ($itemsCount == 1) {
+        $item = $payload['items'][0];
+        $itemTotal = (float) $item['product_p_txt'] * (int) $item['jet_quantity'];
+        $totalCartAmount = $itemTotal;
+
+        $body .= "Тип стока: {$item['product_c_txt']};\r\n";
+        $body .= "Марка: " . "({$item['jet_product_id']}) {$item['att_name']};\r\n";
+        $body .= "Единична цена с ДДС: {$item['product_p_txt']};\r\n";
+        $body .= "Брой стоки: {$item['jet_quantity']};\r\n";
+        $body .= "Обща сума с ДДС: " . number_format($itemTotal, 2, '.', '') . ";\r\n\r\n";
+    } else {
+        // Ако има повече продукти (от количката) - показваме всеки продукт
+        foreach ($payload['items'] as $index => $item) {
+            $itemTotal = (float) $item['product_p_txt'] * (int) $item['jet_quantity'];
+            $totalCartAmount += $itemTotal;
+
+            $body .= "Продукт " . ($index + 1) . ":\r\n";
+            $body .= "Тип стока: {$item['product_c_txt']};\r\n";
+            $attName = isset($item['att_name']) && $item['att_name'] !== '' ? $item['att_name'] : '-';
+            $body .= "Марка: " . "({$item['jet_product_id']}) {$attName};\r\n";
+            $body .= "Единична цена с ДДС: {$item['product_p_txt']};\r\n";
+            $body .= "Брой стоки: {$item['jet_quantity']};\r\n";
+            $body .= "Обща сума с ДДС: " . number_format($itemTotal, 2, '.', '') . ";\r\n\r\n";
+        }
+    }
 }
 
 if (isset($payload['jet_card']) && $payload['jet_card'] == true) {
@@ -110,7 +134,10 @@ if (isset($payload['jet_card']) && $payload['jet_card'] == true) {
 }
 
 $body .= "Данни за кредита:\r\n";
-$body .= "Размер на кредита: " . number_format((float) $item['product_p_txt'] - (float) $item['jet_parva'], 2, '.', '') . ";\r\n";
+// Размер на кредита = обща сума на количката минус първоначалната вноска
+$parva = isset($payload['jet_parva']) ? (float) $payload['jet_parva'] : 0.0;
+$creditAmount = $totalCartAmount - $parva;
+$body .= "Размер на кредита: " . number_format($creditAmount, 2, '.', '') . ";\r\n";
 $body .= "Срок на изплащане в месеца: {$payload['jet_vnoski']};\r\n";
 $body .= "Месечна вноска: {$payload['jet_vnoska']};\r\n";
 $body .= "Първоначална вноска: " . number_format(floatval($payload['jet_parva']), 2, ".", "") . ";\r\n";
