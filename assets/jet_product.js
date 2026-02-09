@@ -372,7 +372,7 @@
   }
 
   /**
-   * Обновява цената и вноските при промяна на вариант
+   * Обновява цената и вноските при промяна на вариант или количество
    */
   function updatePriceFromVariant() {
     const container = document.getElementById('jet-product-button-container');
@@ -382,13 +382,24 @@
 
     // Изчакваме малко за да Shopify обнови DOM-а
     setTimeout(function () {
-      const newPrice = getVariantPrice();
+      const unitPrice = getVariantPrice();
 
-      if (newPrice > 0 && newPrice !== oldPrice) {
-        // Обновяваме цената в контейнера
-        container.dataset.productPrice = String(newPrice);
+      // Вземаме количеството от формата
+      const quantityInput = document.querySelector('input[name="quantity"], input[type="number"][name*="quantity"]');
+      let quantity = 1;
+      if (quantityInput && quantityInput instanceof HTMLInputElement) {
+        quantity = parseInt(quantityInput.value) || 1;
+      }
 
-        // Обновяваме вноските
+      // Умножаваме цената по количеството
+      const newPrice = unitPrice * quantity;
+
+      if (newPrice > 0) {
+        // Винаги обновяваме, дори и да е същата цена (за да обновим количеството)
+        // Обновяваме цената в контейнера (запазваме единичната цена)
+        container.dataset.productPrice = String(unitPrice);
+
+        // Обновяваме вноските с общата цена (единична * количество)
         updateVnoskaText(newPrice, jet_parva);
       }
     }, 300); // Изчакваме 300ms за да Shopify обнови цената в DOM
@@ -509,10 +520,19 @@
     // Обновяваме текста под бутона: запазваме избрания брой вноски, но нулираме първоначалната вноска
     var container = document.getElementById('jet-product-button-container');
     if (container) {
-      var productPrice = parseFloat(container.dataset.productPrice || '0');
-      if (productPrice) {
+      // Вземаме единичната цена от контейнера
+      var unitPrice = parseFloat(container.dataset.productPrice || '0');
+      if (unitPrice) {
+        // Вземаме текущото количество от формата (за да запазим промененото количество)
+        const quantityInput = document.querySelector('input[name="quantity"], input[type="number"][name*="quantity"]');
+        let quantity = 1;
+        if (quantityInput && quantityInput instanceof HTMLInputElement) {
+          quantity = parseInt(quantityInput.value) || 1;
+        }
+        // Умножаваме единичната цена по количеството за да получим общата цена
+        var totalPrice = unitPrice * quantity;
         // Запазваме избрания брой вноски, но винаги нулираме първоначалната вноска (0)
-        updateVnoskaText(productPrice, 0, currentVnoski);
+        updateVnoskaText(totalPrice, 0, currentVnoski);
       }
     }
   }
@@ -909,10 +929,19 @@
     // Обновяваме текста под бутона за картата: запазваме избрания брой вноски, но нулираме първоначалната вноска
     var containerCard = document.getElementById('jet-product-button-card-container');
     if (containerCard) {
-      var productPriceCard = parseFloat(containerCard.dataset.productPrice || '0');
-      if (productPriceCard) {
+      // Вземаме единичната цена от контейнера
+      var unitPriceCard = parseFloat(containerCard.dataset.productPrice || '0');
+      if (unitPriceCard) {
+        // Вземаме текущото количество от формата (за да запазим промененото количество)
+        const quantityInput = document.querySelector('input[name="quantity"], input[type="number"][name*="quantity"]');
+        let quantity = 1;
+        if (quantityInput && quantityInput instanceof HTMLInputElement) {
+          quantity = parseInt(quantityInput.value) || 1;
+        }
+        // Умножаваме единичната цена по количеството за да получим общата цена
+        var totalPriceCard = unitPriceCard * quantity;
         // Запазваме избрания брой вноски, но винаги нулираме първоначалната вноска (0)
-        updateVnoskaText(productPriceCard, 0, currentVnoskiCard);
+        updateVnoskaText(totalPriceCard, 0, currentVnoskiCard);
       }
     }
     var addToCartCardBtn = document.getElementById('jet-add-to-cart-btn-card');
@@ -1546,14 +1575,94 @@
 
       // Проверяваме дали е промяна на количеството
       if (target instanceof HTMLInputElement && (target.name === 'quantity' || target.name.includes('quantity'))) {
+        handleQuantityChange();
+      }
+    }, true); // Използваме capture phase за по-надеждно прихващане
+
+    // Функция за обработка на промяна на количеството
+    function handleQuantityChange() {
+      // Изчакваме малко за да се обнови DOM-ът от framework-а
+      setTimeout(function () {
+        updatePriceFromVariant();
+        // Ако popup-ът е отворен, обновяваме го
         const overlay = document.getElementById('jet-popup-overlay');
         if (overlay && overlay.style.display === 'flex') {
           setTimeout(function () {
             openJetPopup();
           }, 100);
         }
+        const overlayCard = document.getElementById('jet-popup-overlay-card');
+        if (overlayCard && overlayCard.style.display === 'flex') {
+          setTimeout(function () {
+            openJetPopupCard();
+          }, 100);
+        }
+      }, 150);
+    }
+
+    // Прихващаме input event за по-бърза реакция (задейства се при всяка промяна)
+    document.addEventListener('input', function (event) {
+      const target = event.target;
+      if (target instanceof HTMLInputElement && (target.name === 'quantity' || target.name.includes('quantity'))) {
+        handleQuantityChange();
       }
-    }, true); // Използваме capture phase за по-надеждно прихващане
+    }, true);
+
+    // Прихващаме click събития на бутоните за количество в quantity-selector-component
+    document.addEventListener('click', function (event) {
+      const target = event.target;
+      // Проверяваме дали кликът е върху бутон за количество (quantity-plus или quantity-minus)
+      if (target instanceof HTMLElement) {
+        const button = target.closest('button[name="plus"], button[name="minus"]');
+        if (button && button instanceof HTMLButtonElement) {
+          const quantitySelector = button.closest('quantity-selector-component');
+          if (quantitySelector) {
+            handleQuantityChange();
+          }
+        }
+      }
+    }, true);
+
+    // MutationObserver за да следя промени в value атрибута на input полето за количество
+    function setupQuantityObserver() {
+      var quantityInput = document.querySelector('input[name="quantity"], input[type="number"][name*="quantity"]');
+      if (!quantityInput || !(quantityInput instanceof HTMLInputElement)) {
+        // Ако още няма input, опитваме се отново след малко
+        setTimeout(setupQuantityObserver, 500);
+        return;
+      }
+
+      var lastValue = quantityInput.value || '1';
+      var observer = new MutationObserver(function (mutations) {
+        mutations.forEach(function (mutation) {
+          if (mutation.type === 'attributes' && (mutation.attributeName === 'value' || mutation.attributeName === 'data-cart-quantity')) {
+            var target = mutation.target;
+            if (!(target instanceof HTMLInputElement)) return;
+            var currentValue = target.value || target.getAttribute('data-cart-quantity') || '1';
+            if (currentValue !== lastValue) {
+              lastValue = currentValue;
+              handleQuantityChange();
+            }
+          }
+        });
+      });
+
+      observer.observe(quantityInput, {
+        attributes: true,
+        attributeFilter: ['value', 'data-cart-quantity']
+      });
+
+      // Също следя промени в самия quantity-selector-component
+      var quantitySelector = quantityInput.closest('quantity-selector-component');
+      if (quantitySelector) {
+        observer.observe(quantitySelector, {
+          attributes: true,
+          childList: true,
+          subtree: true
+        });
+      }
+    }
+    setupQuantityObserver();
 
     // Прихващаме и click събития за radio бутони (за по-бърза реакция)
     document.addEventListener('click', function (event) {
