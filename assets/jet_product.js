@@ -1017,12 +1017,22 @@
     var parvaInputEl = document.getElementById(parvaInputId);
     var jetParvaFromInput = (parvaInputEl instanceof HTMLInputElement && parvaInputEl.value) ? parvaInputEl.value.trim() : jetParva;
 
+    // Вземаме количеството от формата
+    var quantityInput = document.querySelector('input[name="quantity"], input[type="number"][name*="quantity"]');
+    var quantity = 1;
+    if (quantityInput && quantityInput instanceof HTMLInputElement) {
+      var q = parseInt(quantityInput.value, 10);
+      if (!isNaN(q) && q > 0) {
+        quantity = q;
+      }
+    }
+
     var items = [{
       jet_product_id: productId,
       product_c_txt: productTitle,
       att_name: variantOptions || undefined,
       product_p_txt: productPriceEur,
-      jet_quantity: '1'
+      jet_quantity: String(quantity)
     }];
 
     if (!primaryUrl) {

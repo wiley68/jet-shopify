@@ -57,6 +57,35 @@
   }
 
   /**
+   * Показва кастомен alert (чист JS, без jQuery). Еднакъв вид за всички модули.
+   * @param {string} message - Текст за показване
+   * @param {boolean|function(): void} [exit] - Ако е true или функция: при клик на „Добре“ се извиква функцията (или затваряне на попъпа). Ако е функция, тя се извиква при затваряне.
+   * @returns {void}
+   */
+  function jetShowCustomAlert(message, exit) {
+    var jetAlertBox = document.createElement('div');
+    jetAlertBox.id = 'jet_alert_box';
+    jetAlertBox.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:20px;border-radius:5px;box-shadow:0 0 10px rgba(0,0,0,0.1);z-index:5000001;width:300px;text-align:center;';
+    var jetMessageText = document.createElement('p');
+    jetMessageText.textContent = message;
+    jetMessageText.style.cssText = 'color:#14532d;margin:0;';
+    jetAlertBox.appendChild(jetMessageText);
+    var jetCloseButton = document.createElement('button');
+    jetCloseButton.textContent = 'Добре';
+    jetCloseButton.type = 'button';
+    jetCloseButton.style.cssText = 'font-weight:500;margin-top:20px;padding:10px 20px;border:none;background:#166534;color:#fff;border-radius:3px;cursor:pointer;';
+    jetCloseButton.addEventListener('click', function () {
+      if (jetAlertBox.parentNode) jetAlertBox.parentNode.removeChild(jetAlertBox);
+      var overlay = document.getElementById('jet_alert_overlay');
+      if (overlay) overlay.classList.remove('show');
+      if (typeof exit === 'function') exit();
+      else if (exit) closeJetPopup();
+    });
+    jetAlertBox.appendChild(jetCloseButton);
+    document.body.appendChild(jetAlertBox);
+  }
+
+  /**
    * Изчислява ГПР (%) и ГЛП (%) от брой вноски, месечна вноска и общ размер на кредита (в евро)
    * @param {number} vnoski - Брой вноски
    * @param {number} monthlyVnoskaEuro - Месечна вноска в евро
@@ -921,9 +950,168 @@
       step2SubmitBtn.disabled = true;
       step2SubmitBtn.addEventListener('click', function () {
         if (step2SubmitBtn.disabled) return;
-        // TODO: изпращане на заявка
+        sendJetRequestToAppCart(false);
       });
     }
+  }
+
+  /**
+   * Изпраща POST заявка към приложението (app) с всички полета и items от количката.
+   * @param {boolean} [isCard=false] true ако изпращаме от попъпа за кредитна карта
+   */
+  function sendJetRequestToAppCart(isCard) {
+    var container = isCard 
+      ? document.getElementById('jet-cart-button-card-container')
+      : document.getElementById('jet-cart-button-container');
+    if (!container) return;
+    
+    var jetId = (container.dataset.jetId || '').trim();
+    var shopDomain = (container.dataset.shopDomain || '').trim();
+    var shopPermanentDomain = (container.dataset.shopPermanentDomain || '').trim();
+    var jetEmailPbpf = (container.dataset.jetEmailPbpf || '').trim();
+    var jetEmailShop = (container.dataset.jetEmailShop || '').trim();
+    var jetParva = (container.dataset.jetParva ?? '0').toString().trim();
+    var primaryUrl = (container.dataset.jetPrimaryUrl || '').trim();
+    var secondaryUrl = (container.dataset.jetSecondaryUrl || '').trim();
+
+    var firstnameId = isCard ? 'jet-step2-firstname-card-cart' : 'jet-step2-firstname-cart';
+    var lastnameId = isCard ? 'jet-step2-lastname-card-cart' : 'jet-step2-lastname-cart';
+    var egnId = isCard ? 'jet-step2-egn-card-cart' : 'jet-step2-egn-cart';
+    var phoneId = isCard ? 'jet-step2-phone-card-cart' : 'jet-step2-phone-cart';
+    var emailId = isCard ? 'jet-step2-email-card-cart' : 'jet-step2-email-cart';
+    var vnoskiSelectId = isCard ? 'jet-vnoski-select-card-cart' : 'jet-vnoski-select-cart';
+    var vnoskaInputId = isCard ? 'jet-monthly-vnoska-input-card-cart' : 'jet-monthly-vnoska-input-cart';
+    var parvaInputId = isCard ? 'jet-parva-input-card-cart' : 'jet-parva-input-cart';
+
+    var firstnameEl = document.getElementById(firstnameId);
+    var lastnameEl = document.getElementById(lastnameId);
+    var egnEl = document.getElementById(egnId);
+    var phoneEl = document.getElementById(phoneId);
+    var emailEl = document.getElementById(emailId);
+    var firstname = (firstnameEl instanceof HTMLInputElement && firstnameEl.value) ? firstnameEl.value.trim() : '';
+    var lastname = (lastnameEl instanceof HTMLInputElement && lastnameEl.value) ? lastnameEl.value.trim() : '';
+    var egn = (egnEl instanceof HTMLInputElement && egnEl.value) ? egnEl.value.trim() : '';
+    var phone = (phoneEl instanceof HTMLInputElement && phoneEl.value) ? phoneEl.value.trim() : '';
+    var email = (emailEl instanceof HTMLInputElement && emailEl.value) ? emailEl.value.trim() : '';
+    var vnoskiSelectEl = document.getElementById(vnoskiSelectId);
+    var jetVnoski = (vnoskiSelectEl instanceof HTMLSelectElement && vnoskiSelectEl.value) ? vnoskiSelectEl.value.trim() : '';
+    var jetVnoska = getEuroFromEuroBgnField(vnoskaInputId).toFixed(2);
+    var parvaInputEl = document.getElementById(parvaInputId);
+    var jetParvaFromInput = (parvaInputEl instanceof HTMLInputElement && parvaInputEl.value) ? parvaInputEl.value.trim() : jetParva;
+
+    // Вземаме продуктите от количката чрез Shopify Cart API
+    fetch('/cart.js')
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (cartData) {
+        if (!cartData || !cartData.items || cartData.items.length === 0) {
+          console.warn('[Jet] Cart is empty');
+          return;
+        }
+
+        // Създаваме масив от items с всички продукти от количката
+        // В items изпращаме единичните цени, не общите
+        var items = [];
+        var calculatedTotalCents = 0;
+        
+        for (var i = 0; i < cartData.items.length; i++) {
+          var item = cartData.items[i];
+          if (!item) continue;
+          
+          var productId = item.product_id ? String(item.product_id) : '';
+          var productTitle = item.product_title || item.title || '';
+          var variantTitle = item.variant_title || '';
+          var quantity = item.quantity || 1;
+          
+          // Единичната цена (final_price е цената за един продукт след отстъпки)
+          var unitPriceCents = item.final_price || item.price || 0;
+          var unitPriceEur = (unitPriceCents / 100.0).toFixed(2);
+          
+          // Изчисляваме общата сума за проверка (единична цена × количество)
+          var linePriceCents = unitPriceCents * quantity;
+          calculatedTotalCents += linePriceCents;
+          
+          items.push({
+            jet_product_id: productId,
+            product_c_txt: productTitle,
+            att_name: variantTitle || undefined,
+            product_p_txt: unitPriceEur, // Единична цена
+            jet_quantity: String(quantity)
+          });
+        }
+
+        // Проверка/тест: дали сумата от единичните цени × количества съвпада с общата цена на количката
+        var cartTotalCents = cartData.total_price || 0;
+        if (Math.abs(calculatedTotalCents - cartTotalCents) > 1) {
+          console.warn('[Jet] Price validation failed: calculated total=' + calculatedTotalCents + ' cents, cart total=' + cartTotalCents + ' cents (difference: ' + (cartTotalCents - calculatedTotalCents) + ' cents)');
+          // Не коригираме нищо, само логваме предупреждение
+        } else {
+          console.log('[Jet] Price validation OK: calculated total=' + calculatedTotalCents + ' cents matches cart total=' + cartTotalCents + ' cents');
+        }
+
+        if (!primaryUrl) {
+          console.log('[Jet] Debug: jet_id=', jetId, '(primary URL не е зададен в снипета)');
+          return;
+        }
+
+        var payload = {
+          jet_id: jetId,
+          shop_domain: shopDomain,
+          shop_permanent_domain: shopPermanentDomain,
+          'jet-step2-firstname': firstname,
+          'jet-step2-lastname': lastname,
+          'jet-step2-egn': egn,
+          'jet-step2-phone': phone,
+          'jet-step2-email': email,
+          items: items,
+          jet_card: !!isCard,
+          jet_parva: jetParvaFromInput,
+          jet_vnoski: jetVnoski,
+          jet_vnoska: jetVnoska,
+          jet_email_pbpf: jetEmailPbpf,
+          jet_email_shop: jetEmailShop
+        };
+        
+        var body = JSON.stringify(payload);
+        var opts = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body };
+
+        /** @param {string} url */
+        function doFetch(url) {
+          return fetch(url, opts)
+            .then(function (res) {
+              if (!res.ok) throw new Error('HTTP ' + res.status);
+              return res.json();
+            });
+        }
+
+        doFetch(primaryUrl)
+          .then(function (data) {
+            console.log('[Jet] App response (primary):', data);
+            jetShowCustomAlert('Успешно изпратихте Вашата заявка за лизинг към ПБ Лични Финанси. Очаквайте контакт за потвърждаване на направената от Вас заявка.', function () {
+              if (isCard) closeJetPopupCard(); else closeJetPopup();
+            });
+          })
+          .catch(function (err) {
+            console.warn('[Jet] Primary failed:', err);
+            if (secondaryUrl && secondaryUrl !== primaryUrl) {
+              doFetch(secondaryUrl)
+                .then(function (data) {
+                  console.log('[Jet] App response (fallback):', data);
+                  jetShowCustomAlert('Заявката е изпратена успешно. Ще се свържем с вас скоро.', function () {
+                    if (isCard) closeJetPopupCard(); else closeJetPopup();
+                  });
+                })
+                .catch(function (err2) {
+                  console.warn('[Jet] Fallback failed:', err2);
+                });
+            }
+          });
+      })
+      .catch(function (err) {
+        console.error('[Jet] Failed to fetch cart:', err);
+      });
   }
 
   /**
@@ -1104,7 +1292,7 @@
       step2SubmitBtnCard.disabled = true;
       step2SubmitBtnCard.addEventListener('click', function () {
         if (submitBtnRefCard.disabled) return;
-        // TODO: изпращане на заявка (карта)
+        sendJetRequestToAppCart(true);
       });
     }
   }
