@@ -1,20 +1,29 @@
-Работеща процедура за промени по Shopify тема (пример: esjmyi-8f.myshopify.com)
-
 1) Папка за проекта
-   - Създай папка за магазина (напр. esjmyi-8f/)
+   - Създай папка за магазина (напр. shopify/)
    - Влез в папката
+   - Стартирай терминала от тази папка
 
-2) Login (админ акаунт или Partner access с Themes права)
+2) Инсталация на Shopify CLI
+   npm install -g @shopify/cli@latest
+
+3) Login (админ акаунт или Partner access с Themes права)
    shopify auth login
 
-3) Намиране на Theme ID
-   shopify theme list -s esjmyi-8f.myshopify.com
+4) Намиране на Theme ID
+   shopify theme list -s <SITE_URL>
+   <THEME_ID> - е идентификатора на темата която има role live
 
-4) Изтегляне на темата локално (pull)
-   shopify theme pull -s esjmyi-8f.myshopify.com --theme <THEME_ID>
+5) Изтегляне на темата локално (pull)
+   shopify theme pull -s <SITE_URL> --theme <THEME_ID>
 
-5) Локални промени
-   - Добави/обнови Theme settings (config/settings_schema.json)
+6) Локални промени
+   - Разархивираш получения файл за инсталация на ПБ Лични Финанси (напр. jet-shopify-x.x.x.zip)
+   - Прехвърляш папките assets и snippets в направената папка shopify/
+
+7) Конфигуриране на темата
+   - Отваряш за редакция файла shopify/config/settings_schema.json
+   - В предпоследния ред (който завършва с }) добавяш запетая
+   - Между последния ред (който завършва с ]) и предпоследния в който постави запетая, добавяш долия код:
    {
     "name": "ПБ Лични Финанси",
     "settings": [
@@ -211,49 +220,26 @@
       }
     ]
   }
-   - Добави snippet-а, snippets/jet-product-button.liquid
 
-6) Dev preview (hot reload без push)
-   shopify theme dev -s esjmyi-8f.myshopify.com
-   - Отвори URL-то, което CLI показва (обикновено localhost / 127.0.0.1)
-   - Правиш промени и ги виждаш веднага
-   - Правим промени в настройките от Theme settings/Leasing
-   - Добавяме блок там къде искаме (продуктова страница). Използваме Custom Liquid
-   - Custom Liquid: {% render 'jet-product-button', product: product %}
-   - Добавяме блок там къде искаме (страница количка). Използваме Custom Liquid
-   - Custom Liquid: {% render 'jet-cart-button' %}
-
-7) Push като unpublished (safe deploy)
-   shopify theme push -s esjmyi-8f.myshopify.com --unpublished
+8) Push като unpublished (safe deploy)
+   shopify theme push -s <SITE_URL> --unpublished
+   - Задаваш име на новата тема <NEW_THEME_NAME>
    - В Admin: Online Store -> Themes -> Theme library ще видиш новата unpublished тема
    - Preview / Customize
    - Publish когато си готов
-   
-8) - 5 и 6 отново. Но вече в самия магазин.
 
-По избор (удобни допълнения)
-A) Push към конкретна unpublished тема (за да не се създава нова всеки път)
-   1) shopify theme list -s esjmyi-8f.myshopify.com
-   2) shopify theme push -s esjmyi-8f.myshopify.com --theme <UNPUBLISHED_THEME_ID>
+9) Настройка на темата
+   - В Admin: Online Store -> Themes -> <NEW_THEME_NAME> -> Edit theme
+   - Theme settings -> ПБ Лични Финанси
+   - Въвеждате всички настройки според получените от ПБ Лични Финанси за Вас
+   - Записвате промените
 
-B) Добра практика
-   - Дръж проекта в git repo (branch-ове по клиенти/магазини или по feature-и)
+10) Добавяне на блок в продуктова страница
+   - Добавяме блок там къде искаме (продуктова страница). Използваме Custom Liquid
+   - Custom Liquid: {% render 'jet-product-button', product: product %}
 
-C) Файлове извън темата и theme push
-   - В папката на темата може да имаш и „странични“ файлове: .gitignore, .theme-check.yml,
-     shopify-theme-procedure.txt и др. Те НЕ са част от официалната структура на темата.
-   - shopify theme push качва съдържанието на папката; CLI може да включва и файлове извън
-     папките assets/config/layout/locales/sections/snippets/templates. За да не се качват
-     страничните файлове, използвай .shopifyignore в корена на темата (ред по ред – пътища,
-     които да се пропускат при push). В този проект .shopifyignore изключва: .gitignore,
-     .theme-check.yml, shopify-theme-procedure.txt.
-   - Така при push в Shopify отиват само файловете на темата; .shopifyignore се уважава от
-     shopify theme push (но не от GitHub интеграцията за теми, ако я ползваш).
+11) Добавяне на блок в страница количка
+   - Добавяме блок там къде искаме (страница количка). Използваме Custom Liquid
+   - Custom Liquid: {% render 'jet-cart-button' %}
 
-############### server #######################################################
-За най-бърза проверка инсталирай MaxMind GeoLite2:
-Регистрирай се на https://www.maxmind.com/en/geolite2/signup
-Изтегли GeoLite2-Country.mmdb
-Инсталирай PHP библиотеката: composer require maxmind-db/reader
-Постави GeoLite2-Country.mmdb в /app/
----
+12) Отваряне на магазина. Правите тестове.
