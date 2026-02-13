@@ -239,11 +239,60 @@
   }
 
   /**
+   * Кеш за цени на варианти (за да избегнем излишни заявки)
+   * @type {Map<string, {price: number, timestamp: number}>}
+   */
+  const variantPriceCache = new Map();
+  const CACHE_DURATION = 60000; // 60 секунди
+
+  /**
+   * Извлича цената на варианта от Shopify API
+   * @param {string|number} variantId - ID на варианта
+   * @returns {Promise<number>} Цената в центове или 0 ако не може да се намери
+   */
+  function getVariantPriceFromAPI(variantId) {
+    if (!variantId) return Promise.resolve(0);
+
+    const variantIdStr = String(variantId);
+    const cached = variantPriceCache.get(variantIdStr);
+    const now = Date.now();
+
+    // Проверяваме кеша
+    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+      return Promise.resolve(cached.price);
+    }
+
+    // Shopify AJAX API endpoint за варианти
+    const shopify = typeof window !== 'undefined' ? /** @type {{ routes?: { root?: string } } | undefined} */ (window['Shopify']) : undefined;
+    const shopifyRoot = (shopify && shopify.routes && shopify.routes.root) ? shopify.routes.root : '';
+    const variantUrl = shopifyRoot + 'variants/' + variantIdStr + '.js';
+
+    return fetch(variantUrl)
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (variantData) {
+        if (variantData && variantData.price && variantData.price > 0) {
+          const price = variantData.price; // Цената вече е в центове
+          // Запазваме в кеша
+          variantPriceCache.set(variantIdStr, { price: price, timestamp: now });
+          return price;
+        }
+        return 0;
+      })
+      .catch(function (err) {
+        console.warn('[Jet] Failed to fetch variant price from API:', err);
+        return 0;
+      });
+  }
+
+  /**
    * Извлича цената на варианта от различни източници
    * @returns {number} Цената в центове или 0 ако не може да се намери
    */
   function getVariantPrice() {
-    // Метод 1: От JSON скрипта на варианта (най-надеждно)
+    // Метод 1: От JSON скрипта на варианта (най-надеждно, синхронно)
     const variantScripts = document.querySelectorAll('form script[type="application/json"]');
     for (let i = 0; i < variantScripts.length; i++) {
       const script = variantScripts[i];
@@ -283,7 +332,21 @@
       }
     }
 
-    // Метод 3: От DOM елемента с цената
+    // Метод 3: От контейнера (data-variant-id или data-product-price)
+    const container = document.getElementById('jet-product-button-container');
+    if (container) {
+      const variantId = container.dataset.variantId;
+      if (variantId) {
+        // Ако имаме variant ID, ще използваме API заявка (асинхронно)
+        // Но за синхронна функция, първо проверяваме дали имаме цена в контейнера
+        const containerPrice = parseFloat(container.dataset.productPrice || '0');
+        if (containerPrice > 0) {
+          return containerPrice;
+        }
+      }
+    }
+
+    // Метод 4: От DOM елемента с цената (fallback, но не е надеждно)
     const priceElement = document.querySelector('product-price .price, .price');
     if (priceElement) {
       const priceText = priceElement.textContent || '';
@@ -382,25 +445,60 @@
 
     // Изчакваме малко за да Shopify обнови DOM-а
     setTimeout(function () {
-      const unitPrice = getVariantPrice();
+      let unitPrice = getVariantPrice();
+      const variantId = getCurrentVariantId();
 
-      // Вземаме количеството от формата
-      const quantityInput = document.querySelector('input[name="quantity"], input[type="number"][name*="quantity"]');
-      let quantity = 1;
-      if (quantityInput && quantityInput instanceof HTMLInputElement) {
-        quantity = parseInt(quantityInput.value) || 1;
+      // Ако синхронните методи не дадоха резултат и имаме variant ID, опитваме се с API
+      if ((!unitPrice || unitPrice === 0) && variantId) {
+        getVariantPriceFromAPI(variantId).then(function (apiPrice) {
+          if (apiPrice > 0) {
+            unitPrice = apiPrice;
+            updatePriceWithQuantity(unitPrice);
+          } else {
+            // Ако и API заявката не даде резултат, използваме цената от контейнера
+            const containerPrice = parseFloat(container.dataset.productPrice || '0');
+            if (containerPrice > 0) {
+              updatePriceWithQuantity(containerPrice);
+            }
+          }
+        });
+        return; // Излизаме, защото API заявката е асинхронна
       }
 
-      // Умножаваме цената по количеството
-      const newPrice = unitPrice * quantity;
+      // Ако имаме цена от синхронните методи, обновяваме директно
+      if (unitPrice > 0) {
+        updatePriceWithQuantity(unitPrice);
+      } else {
+        // Fallback към цената от контейнера
+        const containerPrice = parseFloat(container.dataset.productPrice || '0');
+        if (containerPrice > 0) {
+          updatePriceWithQuantity(containerPrice);
+        }
+      }
 
-      if (newPrice > 0) {
-        // Винаги обновяваме, дори и да е същата цена (за да обновим количеството)
-        // Обновяваме цената в контейнера (запазваме единичната цена)
-        container.dataset.productPrice = String(unitPrice);
+      /**
+       * @param {number} unitPriceValue
+       */
+      function updatePriceWithQuantity(unitPriceValue) {
+        if (!container) return;
+        // Вземаме количеството от формата
+        const quantityInput = document.querySelector('input[name="quantity"], input[type="number"][name*="quantity"]');
+        let quantity = 1;
+        if (quantityInput && quantityInput instanceof HTMLInputElement) {
+          quantity = parseInt(quantityInput.value) || 1;
+        }
 
-        // Обновяваме вноските с общата цена (единична * количество)
-        updateVnoskaText(newPrice, jet_parva);
+        // Умножаваме цената по количеството
+        const newPrice = unitPriceValue * quantity;
+
+        if (newPrice > 0) {
+          // Винаги обновяваме, дори и да е същата цена (за да обновим количеството)
+          // Обновяваме цената в контейнера (запазваме единичната цена)
+          container.dataset.productPrice = String(unitPriceValue);
+
+          // Обновяваме вноските с общата цена (единична * количество)
+          updateVnoskaText(newPrice, jet_parva);
+        }
       }
     }, 300); // Изчакваме 300ms за да Shopify обнови цената в DOM
   }
@@ -417,11 +515,40 @@
 
     // Вземаме актуалната цена (включително опциите и количеството)
     let productPrice = getVariantPrice();
+    const variantId = getCurrentVariantId();
+
+    // Ако синхронните методи не дадоха резултат и имаме variant ID, опитваме се с API
+    if ((!productPrice || productPrice === 0) && variantId) {
+      getVariantPriceFromAPI(variantId).then(function (apiPrice) {
+        if (apiPrice > 0) {
+          productPrice = apiPrice;
+          openPopupWithPrice(productPrice);
+        } else {
+          // Ако и API заявката не даде резултат, използваме цената от контейнера
+          const containerPrice = parseFloat(container.dataset.productPrice || '0');
+          openPopupWithPrice(containerPrice > 0 ? containerPrice : 0);
+        }
+      });
+      return; // Излизаме, защото API заявката е асинхронна
+    }
 
     // Ако не можем да вземем цената от варианта, използваме тази от контейнера
     if (!productPrice || productPrice === 0) {
       productPrice = parseFloat(container.dataset.productPrice || '0');
     }
+
+    openPopupWithPrice(productPrice);
+  }
+
+  /**
+   * Отваря popup-а с дадена цена (внутренна помощна функция)
+   * @param {number} productPrice - Цената в центове
+   */
+  function openPopupWithPrice(productPrice) {
+    const overlay = document.getElementById('jet-popup-overlay');
+    if (!overlay) return;
+    const container = document.getElementById('jet-product-button-container');
+    if (!container) return;
 
     // Вземаме количеството от формата (ако има)
     const quantityInput = document.querySelector('input[name="quantity"], input[type="number"][name*="quantity"]');
@@ -651,12 +778,56 @@
     // Цена на стоките: от полето в попъпа (вече е единична × бройка при отваряне), за да запазим бройката
     var productPrice = Math.round(getEuroFromEuroBgnField('jet-product-price-input') * 100);
     if (productPrice <= 0) {
-      const unitPrice = parseFloat(container.dataset.productPrice || '0');
-      const quantityInput = document.querySelector('input[name="quantity"], input[type="number"][name*="quantity"]');
-      let quantity = 1;
-      if (quantityInput && quantityInput instanceof HTMLInputElement) quantity = parseInt(quantityInput.value) || 1;
-      productPrice = Math.round(unitPrice * quantity);
+      // Ако полето е празно или има проблем, опитваме се да получим цената от API
+      const variantId = getCurrentVariantId();
+      if (variantId) {
+        getVariantPriceFromAPI(variantId).then(function (apiPrice) {
+          if (apiPrice > 0) {
+            const quantityInput = document.querySelector('input[name="quantity"], input[type="number"][name*="quantity"]');
+            let quantity = 1;
+            if (quantityInput && quantityInput instanceof HTMLInputElement) quantity = parseInt(quantityInput.value) || 1;
+            const totalPrice = apiPrice * quantity;
+            // Обновяваме полето с цената
+            setEuroBgnDisplay('jet-product-price-input', totalPrice / 100.0);
+            // Обновяваме цената в контейнера
+            container.dataset.productPrice = String(apiPrice);
+            // Преизчисляваме с новата цена
+            recalculatePopupWithPrice(totalPrice);
+          } else {
+            // Fallback към цената от контейнера
+            const unitPrice = parseFloat(container.dataset.productPrice || '0');
+            const quantityInput = document.querySelector('input[name="quantity"], input[type="number"][name*="quantity"]');
+            let quantity = 1;
+            if (quantityInput && quantityInput instanceof HTMLInputElement) quantity = parseInt(quantityInput.value) || 1;
+            recalculatePopupWithPrice(Math.round(unitPrice * quantity));
+          }
+        });
+        return; // Излизаме, защото API заявката е асинхронна
+      } else {
+        // Fallback към цената от контейнера
+        const unitPrice = parseFloat(container.dataset.productPrice || '0');
+        const quantityInput = document.querySelector('input[name="quantity"], input[type="number"][name*="quantity"]');
+        let quantity = 1;
+        if (quantityInput && quantityInput instanceof HTMLInputElement) quantity = parseInt(quantityInput.value) || 1;
+        productPrice = Math.round(unitPrice * quantity);
+      }
     }
+
+    recalculatePopupWithPrice(productPrice);
+  }
+
+  /**
+   * Преизчислява стойностите в popup-а с дадена цена (внутренна помощна функция)
+   * @param {number} productPrice - Цената в центове
+   */
+  function recalculatePopupWithPrice(productPrice) {
+    const container = document.getElementById('jet-product-button-container');
+    if (!container) return;
+
+    const parvaInput = document.getElementById('jet-parva-input');
+    const vnoskiSelect = document.getElementById('jet-vnoski-select');
+
+    if (!parvaInput || !vnoskiSelect) return;
 
     const jetPurcent = parseFloat(container.dataset.jetPurcent || '0');
     const jetMinpriceEuro = parseFloat(container.dataset.jetMinprice || '0') || 0;
@@ -858,7 +1029,41 @@
     const container = document.getElementById('jet-product-button-card-container');
     if (!container) return;
     let productPrice = getVariantPrice();
-    if (!productPrice || productPrice === 0) productPrice = parseFloat(container.dataset.productPrice || '0');
+    const variantId = getCurrentVariantId();
+
+    // Ако синхронните методи не дадоха резултат и имаме variant ID, опитваме се с API
+    if ((!productPrice || productPrice === 0) && variantId) {
+      getVariantPriceFromAPI(variantId).then(function (apiPrice) {
+        if (apiPrice > 0) {
+          productPrice = apiPrice;
+          openPopupCardWithPrice(productPrice);
+        } else {
+          // Ако и API заявката не даде резултат, използваме цената от контейнера
+          const containerPrice = parseFloat(container.dataset.productPrice || '0');
+          openPopupCardWithPrice(containerPrice > 0 ? containerPrice : 0);
+        }
+      });
+      return; // Излизаме, защото API заявката е асинхронна
+    }
+
+    // Ако не можем да вземем цената от варианта, използваме тази от контейнера
+    if (!productPrice || productPrice === 0) {
+      productPrice = parseFloat(container.dataset.productPrice || '0');
+    }
+
+    openPopupCardWithPrice(productPrice);
+  }
+
+  /**
+   * Отваря popup-а за карта с дадена цена (внутренна помощна функция)
+   * @param {number} productPrice - Цената в центове
+   */
+  function openPopupCardWithPrice(productPrice) {
+    const overlay = document.getElementById('jet-popup-overlay-card');
+    if (!overlay) return;
+    const container = document.getElementById('jet-product-button-card-container');
+    if (!container) return;
+
     const quantityInput = document.querySelector('input[name="quantity"], input[type="number"][name*="quantity"]');
     let quantity = 1;
     if (quantityInput && quantityInput instanceof HTMLInputElement) quantity = parseInt(quantityInput.value) || 1;

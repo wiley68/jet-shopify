@@ -221,25 +221,28 @@
     ]
   }
 
-8) Push като unpublished (safe deploy)
+8) Тестване на темата
+  shopify theme dev -s <SITE_URL>
+
+9) Push като unpublished (safe deploy)
    shopify theme push -s <SITE_URL> --unpublished
    - Задаваш име на новата тема <NEW_THEME_NAME>
    - В Admin: Online Store -> Themes -> Theme library ще видиш новата unpublished тема
    - Preview / Customize
    - Publish когато си готов
 
-9) Настройка на темата
+10) Настройка на темата
    - В Admin: Online Store -> Themes -> <NEW_THEME_NAME> -> Edit theme
    - Theme settings -> ПБ Лични Финанси
    - Въвеждате всички настройки според получените от ПБ Лични Финанси за Вас
    - Записвате промените
 
-10) Добавяне на блок в продуктова страница
+11) Добавяне на блок в продуктова страница
    - Добавяме блок там къде искаме (продуктова страница). Използваме Custom Liquid
    - Custom Liquid: {% render 'jet-product-button', product: product %}
 
-11) Добавяне на блок в страница количка
+12) Добавяне на блок в страница количка
    - Добавяме блок там къде искаме (страница количка). Използваме Custom Liquid
    - Custom Liquid: {% render 'jet-cart-button' %}
 
-12) Отваряне на магазина. Правите тестове.
+13) Отваряне на магазина. Правите тестове.
