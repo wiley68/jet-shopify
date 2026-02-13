@@ -11,17 +11,38 @@ define('PB_DEBUG', true);
 
 header('Content-Type: application/json; charset=utf-8');
 
+// CORS обработка – проверяваме Origin и го връщаме обратно ако е от позволен домейн
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$allowedOrigin = '*'; // По подразбиране разрешаваме всички
+
+// Ако има Origin header, проверяваме дали е от myshopify.com домейн
+if ($origin !== '') {
+    $originHost = parse_url($origin, PHP_URL_HOST);
+    if ($originHost !== null && (
+        substr($originHost, -strlen('.myshopify.com')) === '.myshopify.com' ||
+        substr($originHost, -strlen('.shopifycdn.com')) === '.shopifycdn.com'
+    )) {
+        $allowedOrigin = $origin;
+    }
+}
+
 // CORS preflight – преди security, иначе OPTIONS ще получи 405
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Origin: ' . $allowedOrigin);
     header('Access-Control-Allow-Methods: POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type');
     header('Access-Control-Max-Age: 86400');
+    if ($allowedOrigin !== '*') {
+        header('Access-Control-Allow-Credentials: true');
+    }
     http_response_code(204);
     exit;
 }
 
-header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Origin: ' . $allowedOrigin);
+if ($allowedOrigin !== '*') {
+    header('Access-Control-Allow-Credentials: true');
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

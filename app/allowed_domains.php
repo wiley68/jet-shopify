@@ -9,6 +9,7 @@
  */
 $allowed_shop_domains = [
     'esjmyi-8f.myshopify.com',
+    'test-avalon.myshopify.com',
     // Добави следващите магазини тук:
     // 'друг-магазин.myshopify.com',
 ];
