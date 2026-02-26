@@ -1432,10 +1432,9 @@
     const container = document.getElementById('jet-product-button-card-container');
     if (!overlay || !container) return;
 
-    // Клик само върху снимката на бутона (кредитна карта), не върху целия контейнер
-    const cardBtnImg = container.querySelector('.jet-product-button-img');
-    if (cardBtnImg) {
-      cardBtnImg.addEventListener('click', function () {
+    const cardBtnTrigger = container.querySelector('.jet-product-button-trigger');
+    if (cardBtnTrigger) {
+      cardBtnTrigger.addEventListener('click', function () {
         openJetPopupCard();
       });
     }
@@ -1643,17 +1642,33 @@
     }
   }
 
+  /**
+   * Премества попъп оверлеите директно под <body>, за да са извън stacking context
+   * на родителите (напр. slideshow, секции с transform) и z-index да работи коректно.
+   */
+  function movePopupOverlaysToBody() {
+    var overlay = document.getElementById('jet-popup-overlay');
+    if (overlay && overlay.parentNode !== document.body) {
+      document.body.appendChild(overlay);
+    }
+    var overlayCard = document.getElementById('jet-popup-overlay-card');
+    if (overlayCard && overlayCard.parentNode !== document.body) {
+      document.body.appendChild(overlayCard);
+    }
+  }
+
   function init() {
     const container = document.getElementById('jet-product-button-container');
     if (!container) return;
 
+    movePopupOverlaysToBody();
+
     // Инициализираме jet_parva от data атрибута (ако има такъв)
     jet_parva = parseFloat(container.dataset.jetParva || '0') || 0;
 
-    // Клик само върху снимката на бутона, не върху целия контейнер
-    const btnImg = container.querySelector('.jet-product-button-img');
-    if (btnImg) {
-      btnImg.addEventListener('click', function () {
+    const btnTrigger = container.querySelector('.jet-product-button-trigger') || container.querySelector('.jet-product-button-img');
+    if (btnTrigger) {
+      btnTrigger.addEventListener('click', function () {
         openJetPopup();
       });
     }

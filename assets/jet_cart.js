@@ -1371,9 +1371,26 @@
     }
   }
 
+  /**
+   * Премества попъп оверлеите за количката директно под <body>, за да са извън stacking context
+   * на родителите и z-index да работи коректно.
+   */
+  function movePopupOverlaysToBody() {
+    var overlay = document.getElementById('jet-popup-overlay-cart');
+    if (overlay && overlay.parentNode !== document.body) {
+      document.body.appendChild(overlay);
+    }
+    var overlayCard = document.getElementById('jet-popup-overlay-card-cart');
+    if (overlayCard && overlayCard.parentNode !== document.body) {
+      document.body.appendChild(overlayCard);
+    }
+  }
+
   function init() {
     const container = document.getElementById('jet-cart-button-container');
     if (!container) return;
+
+    movePopupOverlaysToBody();
 
     jet_parva = parseFloat(container.dataset.jetParva || '0') || 0;
 

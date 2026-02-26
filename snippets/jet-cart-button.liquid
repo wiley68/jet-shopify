@@ -93,13 +93,17 @@
         data-jet-primary-url="{{ jet_primary_url | escape }}"
         data-jet-secondary-url="{{ jet_secondary_url | escape }}"
       >
-        <img
-          src="{{ 'jet.png' | asset_url }}"
-          alt="ПБ Лични Финанси"
-          class="jet-product-button-img"
-          width="200"
-          height="69"
-        >
+        <button type="button" class="button button-secondary jet-product-button-trigger">
+          <span class="jet-btn-text">Купи на изплащане с</span>
+          <span class="jet-btn-logo">
+            <img
+              src="{{ 'jet.png' | asset_url }}"
+              alt="ПБ Лични Финанси"
+              width="87"
+              height="40"
+            >
+          </span>
+        </button>
       </div>
       {% if settings.jet_vnoska %}
         <div
@@ -383,13 +387,17 @@
           data-jet-primary-url="{{ jet_primary_url | escape }}"
           data-jet-secondary-url="{{ jet_secondary_url | escape }}"
         >
-          <img
-            src="{{ 'jet_card.png' | asset_url }}"
-            alt="ПБ Карта"
-            class="jet-product-button-img"
-            width="200"
-            height="69"
-          >
+          <button type="button" class="button button-secondary jet-product-button-trigger">
+            <span class="jet-btn-text">Купи на вноски с твоята кредитна карта</span>
+            <span class="jet-btn-logo">
+              <img
+                src="{{ 'jet.png' | asset_url }}"
+                alt="ПБ Лични Финанси (кредитна карта)"
+                width="87"
+                height="40"
+              >
+            </span>
+          </button>
         </div>
         {% if settings.jet_vnoska %}
           <div

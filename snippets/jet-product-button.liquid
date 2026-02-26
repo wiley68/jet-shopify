@@ -83,13 +83,17 @@
           data-jet-secondary-url="{{ jet_secondary_url | escape }}"
           data-jet-secondary-currency="{% if settings.jet_secondary_currency %}true{% else %}false{% endif %}"
         >
-          <img
-            src="{{ 'jet.png' | asset_url }}"
-            alt="ПБ Лични Финанси"
-            class="jet-product-button-img"
-            width="200"
-            height="69"
-          >
+          <button type="button" class="button button-secondary jet-product-button-trigger">
+            <span class="jet-btn-text">Купи на изплащане с</span>
+            <span class="jet-btn-logo">
+              <img
+                src="{{ 'jet.png' | asset_url }}"
+                alt="ПБ Лични Финанси"
+                width="87"
+                height="40"
+              >
+            </span>
+          </button>
         </div>
 
         <!-- Popup прозорец за лизинг -->
@@ -374,13 +378,17 @@
             data-jet-parva="{{ jet_parva }}"
             data-jet-purcent-card="{{ settings.jet_purcent_card }}"
           >
-            <img
-              src="{{ 'jet_card.png' | asset_url }}"
-              alt="ПБ Лични Финанси (кредитна карта)"
-              class="jet-product-button-img"
-              width="200"
-              height="69"
-            >
+            <button type="button" class="button button-secondary jet-product-button-trigger">
+              <span class="jet-btn-text">Купи на вноски с твоята кредитна карта</span>
+              <span class="jet-btn-logo">
+                <img
+                  src="{{ 'jet.png' | asset_url }}"
+                  alt="ПБ Лични Финанси (кредитна карта)"
+                  width="87"
+                  height="40"
+                >
+              </span>
+            </button>
           </div>
 
           {% comment %}Изчисляване на месечната вноска за кредитна карта (за попъпа){% endcomment %}
