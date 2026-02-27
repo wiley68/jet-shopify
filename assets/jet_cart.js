@@ -240,17 +240,159 @@
   }
 
   /**
+   * Взима текущата обща сума на количката (в центове) директно от DOM-а.
+   * Използва се както при промяна на количествата, така и при отваряне на попъпа,
+   * за да работим винаги с актуалната стойност.
+   * @param {HTMLElement | null} container
+   * @returns {number}
+   */
+  function getCartTotalCentsFromDom(container) {
+    var cartTotalCents = 0;
+
+    // Опитваме се да вземем общата сума от различни селектори в DOM-а
+    var selectors = [
+      '[data-cart-total]',
+      '.cart-total',
+      '.cart__total',
+      '[id*="cart-total"]',
+      '[id*="cartTotal"]',
+      '.cart-summary [data-total-price]',
+      '.cart-summary .total-price',
+      'cart-totals [data-total-price]',
+      'cart-totals .total-price'
+    ];
+
+    for (var i = 0; i < selectors.length; i++) {
+      var selector = selectors[i];
+      if (!selector) continue;
+      var cartTotalEl = document.querySelector(selector);
+      if (cartTotalEl) {
+        // Първо проверяваме data атрибути (те са вече в центове)
+        var dataTotal = cartTotalEl.getAttribute('data-cart-total') ||
+          cartTotalEl.getAttribute('data-total-price') ||
+          cartTotalEl.getAttribute('data-total');
+        if (dataTotal) {
+          var num = parseFloat(dataTotal);
+          if (!isNaN(num) && num > 0) {
+            // Data атрибутите са вече в центове, не умножаваме
+            cartTotalCents = Math.round(num);
+            break;
+          }
+        }
+
+        // Ако няма data атрибут, опитваме се да извлечем от текста
+        var totalText = cartTotalEl.textContent || '';
+        if (totalText) {
+          // Премахваме всичко освен числа, точка и запетая
+          var priceMatch = totalText.replace(/[^\d,.]/g, '');
+
+          if (priceMatch) {
+            // Обработваме формат като "2.020,00" (точка за хиляди, запетая за десетични)
+            if (priceMatch.includes(',')) {
+              // Европейски формат: "2.020,00" -> премахваме точките, заменяме запетаята с точка
+              priceMatch = priceMatch.replace(/\./g, '').replace(',', '.');
+            } else if (priceMatch.includes('.')) {
+              // Английски формат: "2020.00" или "2.020.00"
+              var parts = priceMatch.split('.');
+              var secondPart = parts[1];
+              // Ако втората част е 2 цифри, това е десетична част
+              if (!(parts.length === 2 && secondPart && secondPart.length <= 2)) {
+                // Иначе точките са за хиляди, премахваме ги
+                priceMatch = priceMatch.replace(/\./g, '');
+              }
+            }
+
+            var priceValue = parseFloat(priceMatch);
+            if (!isNaN(priceValue) && priceValue > 0) {
+              // Винаги конвертираме от евро в центове (умножаваме по 100)
+              cartTotalCents = Math.round(priceValue * 100);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback – ако още нямаме стойност, ползваме data атрибута на контейнера (ако е обновен)
+    if (cartTotalCents === 0 && container) {
+      var currentPrice = parseFloat(container.dataset.productPrice || '0');
+      if (currentPrice > 0) {
+        cartTotalCents = currentPrice;
+      }
+    }
+
+    return cartTotalCents;
+  }
+
+  /**
+   * Връща текущата обща сума на количката (в центове) от Shopify AJAX API (cart.js).
+   * Използваме я когато DOM-ът не е надежден (динамично обновяване със Svelte/JS).
+   * @returns {Promise<number>}
+   */
+  function getCartTotalCentsFromAPI() {
+    var shopify = typeof window !== 'undefined'
+      ? /** @type {{ routes?: { root?: string } } | undefined} */ (window['Shopify'])
+      : undefined;
+    var shopifyRoot = (shopify && shopify.routes && shopify.routes.root) ? shopify.routes.root : '';
+    var cartUrl = shopifyRoot + 'cart.js';
+
+    return fetch(cartUrl)
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (cartData) {
+        if (cartData && typeof cartData.total_price === 'number' && cartData.total_price > 0) {
+          return cartData.total_price;
+        }
+        return 0;
+      })
+      .catch(function (err) {
+        console.warn('[Jet] Failed to fetch cart total from API:', err);
+        return 0;
+      });
+  }
+
+  /**
    * Отваря popup прозореца за лизинг (количка – цена от общата сума в количката)
    */
   function openJetPopup() {
+    const container = document.getElementById('jet-cart-button-container');
+    if (!container) return;
+
+    // Първо опитваме с AJAX API за най-актуална стойност,
+    // като пазим DOM/data-атрибутите като fallback.
+    getCartTotalCentsFromAPI().then(function (apiTotal) {
+      var domTotal = getCartTotalCentsFromDom(container);
+      var fallback = domTotal > 0 ? domTotal : parseFloat(container.dataset.productPrice || '0') || 0;
+      var productPrice = apiTotal > 0 ? apiTotal : fallback;
+      openJetPopupWithPrice(productPrice);
+    });
+  }
+
+  /**
+   * Вътрешна помощна функция: отваря popup-а с подадена цена в центове.
+   * @param {number} productPrice
+   */
+  function openJetPopupWithPrice(productPrice) {
     const overlay = document.getElementById('jet-popup-overlay-cart');
     if (!overlay) return;
 
     const container = document.getElementById('jet-cart-button-container');
     if (!container) return;
 
-    // На страница количка ползваме само общата цена от data атрибута (в центове)
-    const productPrice = parseFloat(container.dataset.productPrice || '0');
+    if (!productPrice || productPrice <= 0) {
+      productPrice = parseFloat(container.dataset.productPrice || '0') || 0;
+    }
+
+    // Синхронизираме data атрибутите, за да са актуални и за други функции
+    if (productPrice && productPrice > 0) {
+      container.dataset.productPrice = String(productPrice);
+      const containerCardSync = document.getElementById('jet-cart-button-card-container');
+      if (containerCardSync) {
+        containerCardSync.dataset.productPrice = String(productPrice);
+      }
+    }
 
     const jetPurcent = parseFloat(container.dataset.jetPurcent || '0');
     const currentParva = jet_parva || 0;
@@ -674,11 +816,40 @@
   }
 
   function openJetPopupCard() {
+    const container = document.getElementById('jet-cart-button-card-container');
+    if (!container) return;
+    // Първо опитваме с AJAX API за най-актуална стойност,
+    // като пазим DOM/data-атрибутите като fallback.
+    getCartTotalCentsFromAPI().then(function (apiTotal) {
+      var domTotal = getCartTotalCentsFromDom(container);
+      var fallback = domTotal > 0 ? domTotal : parseFloat(container.dataset.productPrice || '0') || 0;
+      var productPrice = apiTotal > 0 ? apiTotal : fallback;
+      openJetPopupCardWithPrice(productPrice);
+    });
+  }
+
+  /**
+   * Вътрешна помощна функция: отваря картовия popup с подадена цена в центове.
+   * @param {number} productPrice
+   */
+  function openJetPopupCardWithPrice(productPrice) {
     const overlay = document.getElementById('jet-popup-overlay-card-cart');
     if (!overlay) return;
     const container = document.getElementById('jet-cart-button-card-container');
     if (!container) return;
-    const productPrice = parseFloat(container.dataset.productPrice || '0');
+
+    if (!productPrice || productPrice <= 0) {
+      productPrice = parseFloat(container.dataset.productPrice || '0') || 0;
+    }
+
+    // Синхронизираме data атрибутите, за да са актуални и за други функции
+    if (productPrice && productPrice > 0) {
+      container.dataset.productPrice = String(productPrice);
+      const containerMainSync = document.getElementById('jet-cart-button-container');
+      if (containerMainSync) {
+        containerMainSync.dataset.productPrice = String(productPrice);
+      }
+    }
     const jetPurcentCard = parseFloat(container.dataset.jetPurcentCard || '0');
     const currentParva = parseFloat(container.dataset.jetParva || '0') || 0;
     const vnoskaEl = document.querySelector('.jet-vnoska-card');
@@ -1412,79 +1583,7 @@
     function updateCartTotal() {
       // Изчакваме малко за да се обнови DOM-ът от framework-а
       setTimeout(function () {
-        var cartTotalCents = 0;
-
-        // Метод 1: Опитваме се да вземем общата сума от различни селектори в DOM-а
-        var selectors = [
-          '[data-cart-total]',
-          '.cart-total',
-          '.cart__total',
-          '[id*="cart-total"]',
-          '[id*="cartTotal"]',
-          '.cart-summary [data-total-price]',
-          '.cart-summary .total-price',
-          'cart-totals [data-total-price]',
-          'cart-totals .total-price'
-        ];
-
-        for (var i = 0; i < selectors.length; i++) {
-          var selector = selectors[i];
-          if (!selector) continue;
-          var cartTotalEl = document.querySelector(selector);
-          if (cartTotalEl) {
-            // Първо проверяваме data атрибути (те са вече в центове)
-            var dataTotal = cartTotalEl.getAttribute('data-cart-total') ||
-              cartTotalEl.getAttribute('data-total-price') ||
-              cartTotalEl.getAttribute('data-total');
-            if (dataTotal) {
-              var num = parseFloat(dataTotal);
-              if (!isNaN(num) && num > 0) {
-                // Data атрибутите са вече в центове, не умножаваме
-                cartTotalCents = Math.round(num);
-                break;
-              }
-            }
-
-            // Ако няма data атрибут, опитваме се да извлечем от текста
-            var totalText = cartTotalEl.textContent || '';
-            if (totalText) {
-              // Премахваме всичко освен числа, точка и запетая
-              var priceMatch = totalText.replace(/[^\d,.]/g, '');
-
-              if (priceMatch) {
-                // Обработваме формат като "2.020,00" (точка за хиляди, запетая за десетични)
-                if (priceMatch.includes(',')) {
-                  // Европейски формат: "2.020,00" -> премахваме точките, заменяме запетаята с точка
-                  priceMatch = priceMatch.replace(/\./g, '').replace(',', '.');
-                } else if (priceMatch.includes('.')) {
-                  // Английски формат: "2020.00" или "2.020.00"
-                  var parts = priceMatch.split('.');
-                  var secondPart = parts[1];
-                  // Ако втората част е 2 цифри, това е десетична част
-                  if (!(parts.length === 2 && secondPart && secondPart.length <= 2)) {
-                    // Иначе точките са за хиляди, премахваме ги
-                    priceMatch = priceMatch.replace(/\./g, '');
-                  }
-                }
-
-                var priceValue = parseFloat(priceMatch);
-                if (!isNaN(priceValue) && priceValue > 0) {
-                  // Винаги конвертираме от евро в центове (умножаваме по 100)
-                  cartTotalCents = Math.round(priceValue * 100);
-                  break;
-                }
-              }
-            }
-          }
-        }
-
-        // Метод 2: От data атрибут на контейнера (ако вече е обновен)
-        if (cartTotalCents === 0 && container) {
-          var currentPrice = parseFloat(container.dataset.productPrice || '0');
-          if (currentPrice > 0) {
-            cartTotalCents = currentPrice;
-          }
-        }
+        var cartTotalCents = getCartTotalCentsFromDom(container);
 
         // Ако намерихме нова сума и е различна от текущата, обновяваме
         if (cartTotalCents > 0 && container) {
