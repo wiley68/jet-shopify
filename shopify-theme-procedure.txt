@@ -75,8 +75,8 @@
         "type": "text",
         "id": "jet_email_pbpf",
         "label": "Email ПБ Лични Финанси",
-        "info": "Email на Банката, на който ще се изпращат заявките. Използвайте \"online.shop@pbpf.bg\"",
-        "default": "online.shop@pbpf.bg"
+        "info": "Email на Банката, на който ще се изпращат заявките. Използвайте \"pf-online.shop@postbank.bg\"",
+        "default": "pf-online.shop@postbank.bg"
       },
       {
         "type": "text",
