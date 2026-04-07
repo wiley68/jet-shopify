@@ -152,91 +152,11 @@
   }
 
   /**
-   * Обновява текста за вноските на страницата (надписите под бутона)
-   * @param {number} productPrice - Цената в центове
-   * @param {number} parva - Първоначална вноска в центове (опционално, използва текущата стойност ако не е зададена)
-   * @param {number} [vnoski] - Брой вноски (опционално; ако липсва, се изчислява от цената)
-   */
-  function updateVnoskaText(productPrice, parva, vnoski) {
-    const container = document.getElementById('jet-cart-button-container');
-    if (!container) return;
-
-    // Проверяваме дали трябва да показваме BGN (от снипета се подава в data атрибут или от настройките)
-    const showBgn = container.dataset.jetSecondaryCurrency === 'true';
-    const jetMinVnoski = parseFloat(container.dataset.jetMinVnoski || '125') || 125;
-    const jetVnoskiDefault = parseFloat(container.dataset.jetVnoskiDefault || '12') || 12;
-    const currentParva = parva !== undefined ? parva : jet_parva;
-
-    // Изчисляваме реалната сума за кредит
-    const jetTotalCreditPrice = productPrice - currentParva;
-
-    // Брой вноски: от параметъра (напр. от попъпа) или изчислен от цената
-    const vnoskiResolved =
-      vnoski === undefined || vnoski === null
-        ? calculateVnoski(productPrice, jetMinVnoski, jetVnoskiDefault, currentParva)
-        : vnoski;
-
-    /** Връща HTML за ред вноска: основен текст + опционално span с лв. (по-малък шрифт) */
-    /** @param {string} jetVnoskaFormatted @param {number} jetVnoskaCents */
-    function vnoskaLineContent(jetVnoskaFormatted, jetVnoskaCents) {
-      var main = vnoskiResolved + ' x ' + jetVnoskaFormatted + ' €';
-      if (showBgn) {
-        var bgn = (jetVnoskaCents / 100) * JET_EUR_TO_BGN;
-        return main + ' <span class="jet-vnoska-bgn">(' + bgn.toFixed(2) + ' лв.)</span>';
-      }
-      return main;
-    }
-
-    // Обновяваме елементите за редовен лизинг (използва jet_purcent)
-    const regularElements = document.querySelectorAll('.jet-vnoska-regular');
-    regularElements.forEach(function (element) {
-      if (element instanceof HTMLElement) {
-        const jetPurcent = parseFloat(element.dataset.jetPurcent || '0') || 0;
-        const jetVnoskaCents = calculateJetVnoska(jetTotalCreditPrice, vnoskiResolved, jetPurcent);
-        const jetVnoskaFormatted = formatEuro(jetVnoskaCents);
-        var content = vnoskaLineContent(jetVnoskaFormatted, jetVnoskaCents);
-        if (showBgn) {
-          element.innerHTML = content;
-        } else {
-          element.textContent = content;
-        }
-        element.dataset.vnoski = String(vnoskiResolved);
-        element.dataset.jetVnoska = String(jetVnoskaCents);
-      }
-    });
-
-    // Обновяваме елементите за кредитна карта (използва jet_purcent_card)
-    const cardElements = document.querySelectorAll('.jet-vnoska-card');
-    cardElements.forEach(function (element) {
-      if (element instanceof HTMLElement) {
-        const jetPurcentCard = parseFloat(element.dataset.jetPurcentCard || '0') || 0;
-        const jetVnoskaCents = calculateJetVnoska(jetTotalCreditPrice, vnoskiResolved, jetPurcentCard);
-        const jetVnoskaFormatted = formatEuro(jetVnoskaCents);
-        var content = vnoskaLineContent(jetVnoskaFormatted, jetVnoskaCents);
-        if (showBgn) {
-          element.innerHTML = content;
-        } else {
-          element.textContent = content;
-        }
-        element.dataset.vnoski = String(vnoskiResolved);
-        element.dataset.jetVnoska = String(jetVnoskaCents);
-      }
-    });
-  }
-
-  /**
    * Задава първоначалната вноска и обновява изчисленията
    * @param {number} parva - Първоначална вноска в центове
    */
   function setJetParva(parva) {
     jet_parva = parva || 0;
-    const container = document.getElementById('jet-cart-button-container');
-    if (container) {
-      const productPrice = parseFloat(container.dataset.productPrice || '0');
-      if (productPrice) {
-        updateVnoskaText(productPrice, jet_parva);
-      }
-    }
   }
 
   /**
@@ -396,11 +316,8 @@
 
     const jetPurcent = parseFloat(container.dataset.jetPurcent || '0');
     const currentParva = jet_parva || 0;
-    // Брой вноски при отваряне: от текста под бутона (ако е обновен) или от Liquid (data-jet-vnoski)
-    const vnoskaEl = document.querySelector('.jet-vnoska-regular');
-    const vnoskiFromEl = vnoskaEl instanceof HTMLElement ? vnoskaEl.dataset.vnoski : undefined;
     const currentVnoski = parseInt(
-      vnoskiFromEl || container.dataset.jetVnoski || container.dataset.jetVnoskiDefault || '12',
+      container.dataset.jetVnoski || container.dataset.jetVnoskiDefault || '12',
       10
     );
 
@@ -466,26 +383,11 @@
       gdprCheckbox.checked = false;
       gdprCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
     }
-    // Запазваме само избрания брой вноски от попъпа (първоначалната вноска винаги се нулира)
-    var vnoskiSelect = document.getElementById('jet-vnoski-select-cart');
-    var currentVnoski = undefined;
-    if (vnoskiSelect && vnoskiSelect instanceof HTMLSelectElement) {
-      currentVnoski = parseInt(vnoskiSelect.value || '12', 10) || 12;
-    }
     // Нулираме първоначалната вноска (и в попъпа, и в глобалната променлива)
     jet_parva = 0;
     var parvaInput = document.getElementById('jet-parva-input-cart');
     if (parvaInput && parvaInput instanceof HTMLInputElement) {
       parvaInput.value = '0';
-    }
-    // Обновяваме текста под бутона: запазваме избрания брой вноски, но нулираме първоначалната вноска
-    var container = document.getElementById('jet-cart-button-container');
-    if (container) {
-      var productPrice = parseFloat(container.dataset.productPrice || '0');
-      if (productPrice) {
-        // Запазваме избрания брой вноски, но винаги нулираме първоначалната вноска (0)
-        updateVnoskaText(productPrice, 0, currentVnoski);
-      }
     }
   }
 
@@ -651,8 +553,6 @@
     // Обновяваме стойностите в popup-а
     updatePopupValues(productPrice, parvaCents, vnoski, jetPurcent);
 
-    // Обновяваме надписите под бутона с избрания брой вноски от попъпа
-    updateVnoskaText(productPrice, parvaCents, vnoski);
   }
 
   /**
@@ -812,7 +712,6 @@
     }
     const vnoski = parseInt(vnoskiSelect instanceof HTMLSelectElement ? vnoskiSelect.value : '12') || 12;
     updatePopupValuesCard(productPrice, parvaCents, vnoski, jetPurcentCard);
-    updateVnoskaText(productPrice, parvaCents, vnoski);
   }
 
   function openJetPopupCard() {
@@ -852,9 +751,7 @@
     }
     const jetPurcentCard = parseFloat(container.dataset.jetPurcentCard || '0');
     const currentParva = parseFloat(container.dataset.jetParva || '0') || 0;
-    const vnoskaEl = document.querySelector('.jet-vnoska-card');
-    const vnoskiFromEl = vnoskaEl instanceof HTMLElement ? vnoskaEl.dataset.vnoski : undefined;
-    const currentVnoski = parseInt(vnoskiFromEl || container.dataset.jetVnoskiDefault || '12', 10);
+    const currentVnoski = parseInt(container.dataset.jetVnoskiDefault || '12', 10);
     const step1 = document.getElementById('jet-popup-step1-card-cart');
     const step2 = document.getElementById('jet-popup-step2-card-cart');
     const footerStep1 = document.getElementById('jet-popup-footer-step1-card-cart');
@@ -902,25 +799,10 @@
       gdprCheckboxCard.checked = false;
       gdprCheckboxCard.dispatchEvent(new Event('change', { bubbles: true }));
     }
-    // Запазваме само избрания брой вноски от попъпа (първоначалната вноска винаги се нулира)
-    var vnoskiSelectCard = document.getElementById('jet-vnoski-select-card-cart');
-    var currentVnoskiCard = undefined;
-    if (vnoskiSelectCard && vnoskiSelectCard instanceof HTMLSelectElement) {
-      currentVnoskiCard = parseInt(vnoskiSelectCard.value || '12', 10) || 12;
-    }
     // Нулираме първоначалната вноска в попъпа
     var parvaInputCard = document.getElementById('jet-parva-input-card-cart');
     if (parvaInputCard && parvaInputCard instanceof HTMLInputElement) {
       parvaInputCard.value = '0';
-    }
-    // Обновяваме текста под бутона за картата: запазваме избрания брой вноски, но нулираме първоначалната вноска
-    var containerCard = document.getElementById('jet-cart-button-card-container');
-    if (containerCard) {
-      var productPriceCard = parseFloat(containerCard.dataset.productPrice || '0');
-      if (productPriceCard) {
-        // Запазваме избрания брой вноски, но винаги нулираме първоначалната вноска (0)
-        updateVnoskaText(productPriceCard, 0, currentVnoskiCard);
-      }
     }
   }
 
@@ -1106,6 +988,40 @@
       if (phone instanceof HTMLInputElement) setError(phone, (phone.value || '').replace(/\s/g, '').length < 10);
       if (email instanceof HTMLInputElement) setError(email, !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email.value || '').trim()));
     }
+    /** @returns {string[]} */
+    function getStep2InvalidReasons() {
+      var reasons = [];
+      var firstname = document.getElementById('jet-step2-firstname-cart');
+      var lastname = document.getElementById('jet-step2-lastname-cart');
+      var egnInput = document.getElementById('jet-step2-egn-cart');
+      var phone = document.getElementById('jet-step2-phone-cart');
+      var email = document.getElementById('jet-step2-email-cart');
+      var terms = document.getElementById('jet-step2-terms-checkbox-cart');
+
+      if (firstname instanceof HTMLInputElement && (firstname.value || '').trim().length === 0) {
+        reasons.push('Попълнете поле "Име".');
+      }
+      if (lastname instanceof HTMLInputElement && (lastname.value || '').trim().length === 0) {
+        reasons.push('Попълнете поле "Фамилия".');
+      }
+      if (egnInput instanceof HTMLInputElement && !isValidEgn((egnInput.value || '').trim())) {
+        reasons.push('Полето "ЕГН" трябва да съдържа валидно 10-цифрено ЕГН.');
+      }
+      if (phone instanceof HTMLInputElement && (phone.value || '').replace(/\s/g, '').length < 10) {
+        reasons.push('Полето "Телефон" трябва да съдържа поне 10 цифри.');
+      }
+      if (email instanceof HTMLInputElement && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email.value || '').trim())) {
+        reasons.push('Полето "Имейл" не е валиден email адрес.');
+      }
+      if (terms instanceof HTMLInputElement && terms.checked !== true) {
+        reasons.push('Трябва да отбележите съгласието с условията на ПБ Лични финанси.');
+      }
+
+      if (reasons.length === 0 && !isStep2FormValid()) {
+        reasons.push('Има непопълнени или невалидни полета във формата.');
+      }
+      return reasons;
+    }
 
     /** @param {HTMLElement | null} el */
     function clearInputError(el) {
@@ -1135,9 +1051,14 @@
     const step2SubmitWrap = document.getElementById('jet-step2-submit-wrap-cart');
     if (step2SubmitWrap) {
       step2SubmitWrap.addEventListener('click', function (e) {
+        updateStep2SubmitButtonState();
         if (step2SubmitBtn && step2SubmitBtn instanceof HTMLButtonElement && step2SubmitBtn.disabled) {
+          if (isStep2FormValid()) return;
           e.preventDefault();
           highlightInvalidStep2Fields();
+          var reasons = getStep2InvalidReasons();
+          var message = reasons[0] || 'Попълнете коректно всички полета, за да продължите.';
+          jetShowCustomAlert(message, false);
         }
       });
     }
@@ -1481,6 +1402,40 @@
       if (ph instanceof HTMLInputElement) setErr(ph, (ph.value || '').replace(/\s/g, '').length < 10);
       if (em instanceof HTMLInputElement) setErr(em, !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((em.value || '').trim()));
     }
+    /** @returns {string[]} */
+    function getStep2InvalidReasonsCard() {
+      var reasons = [];
+      var fn = document.getElementById('jet-step2-firstname-card-cart');
+      var ln = document.getElementById('jet-step2-lastname-card-cart');
+      var egn = document.getElementById('jet-step2-egn-card-cart');
+      var ph = document.getElementById('jet-step2-phone-card-cart');
+      var em = document.getElementById('jet-step2-email-card-cart');
+      var tr = document.getElementById('jet-step2-terms-checkbox-card-cart');
+
+      if (fn instanceof HTMLInputElement && (fn.value || '').trim().length === 0) {
+        reasons.push('Попълнете поле "Име".');
+      }
+      if (ln instanceof HTMLInputElement && (ln.value || '').trim().length === 0) {
+        reasons.push('Попълнете поле "Фамилия".');
+      }
+      if (egn instanceof HTMLInputElement && !isValidEgn((egn.value || '').trim())) {
+        reasons.push('Полето "ЕГН" трябва да съдържа валидно 10-цифрено ЕГН.');
+      }
+      if (ph instanceof HTMLInputElement && (ph.value || '').replace(/\s/g, '').length < 10) {
+        reasons.push('Полето "Телефон" трябва да съдържа поне 10 цифри.');
+      }
+      if (em instanceof HTMLInputElement && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((em.value || '').trim())) {
+        reasons.push('Полето "Имейл" не е валиден email адрес.');
+      }
+      if (tr instanceof HTMLInputElement && tr.checked !== true) {
+        reasons.push('Трябва да отбележите съгласието с условията на ПБ Лични финанси.');
+      }
+
+      if (reasons.length === 0 && !isStep2FormValidCard()) {
+        reasons.push('Има непопълнени или невалидни полета във формата.');
+      }
+      return reasons;
+    }
     /** @param {HTMLElement} el */
     function clearInputErrorCard(el) {
       if (el && el.classList) el.classList.remove('jet-input-error');
@@ -1508,9 +1463,14 @@
     var step2SubmitBtnCard = document.getElementById('jet-step2-submit-btn-card-cart');
     if (step2SubmitWrapCard) {
       step2SubmitWrapCard.addEventListener('click', function (e) {
+        updateStep2SubmitButtonStateCard();
         if (step2SubmitBtnCard && step2SubmitBtnCard instanceof HTMLButtonElement && step2SubmitBtnCard.disabled) {
+          if (isStep2FormValidCard()) return;
           e.preventDefault();
           highlightInvalidStep2FieldsCard();
+          var reasons = getStep2InvalidReasonsCard();
+          var message = reasons[0] || 'Попълнете коректно всички полета, за да продължите.';
+          jetShowCustomAlert(message, false);
         }
       });
     }
@@ -1565,11 +1525,6 @@
 
     jet_parva = parseFloat(container.dataset.jetParva || '0') || 0;
 
-    const productPrice = parseFloat(container.dataset.productPrice || '0');
-    if (productPrice) {
-      updateVnoskaText(productPrice, jet_parva);
-    }
-
     container.addEventListener('click', function () {
       openJetPopup();
     });
@@ -1595,8 +1550,6 @@
             if (containerCard) {
               containerCard.dataset.productPrice = String(cartTotalCents);
             }
-            updateVnoskaText(cartTotalCents, jet_parva);
-
             // Ако popup-ът е отворен, обновяваме го
             const overlay = document.getElementById('jet-popup-overlay-cart');
             if (overlay && overlay.style.display === 'flex') {
@@ -1730,7 +1683,6 @@
     jetCart.calculateVnoski = calculateVnoski;
     jetCart.calculateJetVnoska = calculateJetVnoska;
     jetCart.formatEuro = formatEuro;
-    jetCart.updateVnoskaText = updateVnoskaText;
     jetCart.setJetParva = setJetParva;
     jetCart.getJetParva = function () {
       return jet_parva;

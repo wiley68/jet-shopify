@@ -1359,6 +1359,40 @@
       if (phone instanceof HTMLInputElement) setError(phone, (phone.value || '').replace(/\s/g, '').length < 10);
       if (email instanceof HTMLInputElement) setError(email, !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email.value || '').trim()));
     }
+    /** @returns {string[]} */
+    function getStep2InvalidReasons() {
+      var reasons = [];
+      var firstname = document.getElementById('jet-step2-firstname');
+      var lastname = document.getElementById('jet-step2-lastname');
+      var egnInput = document.getElementById('jet-step2-egn');
+      var phone = document.getElementById('jet-step2-phone');
+      var email = document.getElementById('jet-step2-email');
+      var terms = document.getElementById('jet-step2-terms-checkbox');
+
+      if (firstname instanceof HTMLInputElement && (firstname.value || '').trim().length === 0) {
+        reasons.push('Попълнете поле "Име".');
+      }
+      if (lastname instanceof HTMLInputElement && (lastname.value || '').trim().length === 0) {
+        reasons.push('Попълнете поле "Фамилия".');
+      }
+      if (egnInput instanceof HTMLInputElement && !isValidEgn((egnInput.value || '').trim())) {
+        reasons.push('Полето "ЕГН" трябва да съдържа валидно 10-цифрено ЕГН.');
+      }
+      if (phone instanceof HTMLInputElement && (phone.value || '').replace(/\s/g, '').length < 10) {
+        reasons.push('Полето "Телефон" трябва да съдържа поне 10 цифри.');
+      }
+      if (email instanceof HTMLInputElement && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email.value || '').trim())) {
+        reasons.push('Полето "Имейл" не е валиден email адрес.');
+      }
+      if (terms instanceof HTMLInputElement && terms.checked !== true) {
+        reasons.push('Трябва да отбележите съгласието с условията на ПБ Лични финанси.');
+      }
+
+      if (reasons.length === 0 && !isStep2FormValid()) {
+        reasons.push('Има непопълнени или невалидни полета във формата.');
+      }
+      return reasons;
+    }
 
     /** @param {HTMLElement | null} el */
     function clearInputError(el) {
@@ -1390,9 +1424,14 @@
     const step2SubmitWrap = document.getElementById('jet-step2-submit-wrap');
     if (step2SubmitWrap) {
       step2SubmitWrap.addEventListener('click', function (e) {
+        updateStep2SubmitButtonState();
         if (step2SubmitBtn && step2SubmitBtn instanceof HTMLButtonElement && step2SubmitBtn.disabled) {
+          if (isStep2FormValid()) return;
           e.preventDefault();
           highlightInvalidStep2Fields();
+          var reasons = getStep2InvalidReasons();
+          var message = reasons[0] || 'Попълнете коректно всички полета, за да продължите.';
+          jetShowCustomAlert(message, false);
         }
       });
     }
@@ -1580,6 +1619,40 @@
       if (ph instanceof HTMLInputElement) setErr(ph, (ph.value || '').replace(/\s/g, '').length < 10);
       if (em instanceof HTMLInputElement) setErr(em, !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((em.value || '').trim()));
     }
+    /** @returns {string[]} */
+    function getStep2InvalidReasonsCard() {
+      var reasons = [];
+      var fn = document.getElementById('jet-step2-firstname-card');
+      var ln = document.getElementById('jet-step2-lastname-card');
+      var egn = document.getElementById('jet-step2-egn-card');
+      var ph = document.getElementById('jet-step2-phone-card');
+      var em = document.getElementById('jet-step2-email-card');
+      var tr = document.getElementById('jet-step2-terms-checkbox-card');
+
+      if (fn instanceof HTMLInputElement && (fn.value || '').trim().length === 0) {
+        reasons.push('Попълнете поле "Име".');
+      }
+      if (ln instanceof HTMLInputElement && (ln.value || '').trim().length === 0) {
+        reasons.push('Попълнете поле "Фамилия".');
+      }
+      if (egn instanceof HTMLInputElement && !isValidEgn((egn.value || '').trim())) {
+        reasons.push('Полето "ЕГН" трябва да съдържа валидно 10-цифрено ЕГН.');
+      }
+      if (ph instanceof HTMLInputElement && (ph.value || '').replace(/\s/g, '').length < 10) {
+        reasons.push('Полето "Телефон" трябва да съдържа поне 10 цифри.');
+      }
+      if (em instanceof HTMLInputElement && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((em.value || '').trim())) {
+        reasons.push('Полето "Имейл" не е валиден email адрес.');
+      }
+      if (tr instanceof HTMLInputElement && tr.checked !== true) {
+        reasons.push('Трябва да отбележите съгласието с условията на ПБ Лични финанси.');
+      }
+
+      if (reasons.length === 0 && !isStep2FormValidCard()) {
+        reasons.push('Има непопълнени или невалидни полета във формата.');
+      }
+      return reasons;
+    }
     /** @param {HTMLElement} el */
     function clearInputErrorCard(el) {
       if (el && el.classList) el.classList.remove('jet-input-error');
@@ -1607,9 +1680,14 @@
     var step2SubmitBtnCard = document.getElementById('jet-step2-submit-btn-card');
     if (step2SubmitWrapCard) {
       step2SubmitWrapCard.addEventListener('click', function (e) {
+        updateStep2SubmitButtonStateCard();
         if (step2SubmitBtnCard && step2SubmitBtnCard instanceof HTMLButtonElement && step2SubmitBtnCard.disabled) {
+          if (isStep2FormValidCard()) return;
           e.preventDefault();
           highlightInvalidStep2FieldsCard();
+          var reasons = getStep2InvalidReasonsCard();
+          var message = reasons[0] || 'Попълнете коректно всички полета, за да продължите.';
+          jetShowCustomAlert(message, false);
         }
       });
     }
