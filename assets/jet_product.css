@@ -11,6 +11,17 @@
   width: 100%;
   display: flex;
   align-items: center;
+  border: 1px solid black;
+  border-radius: 10px;
+  font-size: 12pt;
+  font-weight: 400;
+  line-height: 20px;
+  padding: 1em;
+  box-sizing: border-box;
+}
+
+#jet-product-button-container .jet-product-button-trigger:hover {
+  background-color: #fafafa;
 }
 
 #jet-product-button-container .jet-btn-text {
@@ -31,6 +42,7 @@
   height: 40px;
   max-width: none;
   object-fit: contain;
+  margin: 0px;
 }
 
 .jet-product-button-img {
@@ -52,6 +64,17 @@
   width: 100%;
   display: flex;
   align-items: center;
+  border: 1px solid black;
+  border-radius: 10px;
+  font-size: 12pt;
+  font-weight: 400;
+  line-height: 20px;
+  padding: 1em;
+  box-sizing: border-box;
+}
+
+#jet-product-button-card-container .jet-product-button-trigger:hover {
+  background-color: #fafafa;
 }
 
 #jet-product-button-card-container .jet-btn-text {
@@ -72,6 +95,7 @@
   height: 40px;
   max-width: none;
   object-fit: contain;
+  margin: 0px;
 }
 
 /* Съобщение за грешка при липсващи настройки */
@@ -165,7 +189,7 @@
   text-align: left;
 }
 
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n+8) {
+.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) {
   gap: 8px;
 }
 
@@ -176,8 +200,11 @@
 }
 
 /* Стилове за първата секция (редове 1–8) – само за реда и етикета, не за input/select */
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n+8),
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n+8) .jet-popup-label {
+.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8),
+.jet-popup-content
+  .jet-popup-step
+  .jet-popup-row:nth-child(-n + 8)
+  .jet-popup-label {
   color: #052e16;
   font-size: 14pt;
   font-weight: 400;
@@ -191,18 +218,30 @@
 }
 
 /* Колоните в първите 8 реда да са 50/50 */
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n+8) .jet-popup-label {
+.jet-popup-content
+  .jet-popup-step
+  .jet-popup-row:nth-child(-n + 8)
+  .jet-popup-label {
   flex: 0 0 50%;
   min-width: 0;
   max-width: 50%;
 }
 
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n+8) .jet-popup-input-group {
+.jet-popup-content
+  .jet-popup-step
+  .jet-popup-row:nth-child(-n + 8)
+  .jet-popup-input-group {
   flex: 1;
 }
 
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n+8) .jet-popup-input,
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n+8) .jet-popup-select {
+.jet-popup-content
+  .jet-popup-step
+  .jet-popup-row:nth-child(-n + 8)
+  .jet-popup-input,
+.jet-popup-content
+  .jet-popup-step
+  .jet-popup-row:nth-child(-n + 8)
+  .jet-popup-select {
   flex: 1;
 }
 
@@ -297,7 +336,7 @@ select.jet-popup-select {
 
 /* Икона падащо меню (chevron надолу) в десния край */
 .jet-select-display::after {
-  content: '';
+  content: "";
   position: absolute;
   right: 14px;
   top: 50%;
@@ -357,8 +396,14 @@ select.jet-popup-select {
 }
 
 /* По-дебел шрифт и същият цвят като реда – полетата не наследяват цвета по подразбиране */
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n+8) input.jet-popup-input,
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n+8) select.jet-popup-select,
+.jet-popup-content
+  .jet-popup-step
+  .jet-popup-row:nth-child(-n + 8)
+  input.jet-popup-input,
+.jet-popup-content
+  .jet-popup-step
+  .jet-popup-row:nth-child(-n + 8)
+  select.jet-popup-select,
 input.jet-popup-input,
 select.jet-popup-select {
   color: #052e16;
