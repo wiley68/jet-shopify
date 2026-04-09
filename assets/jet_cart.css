@@ -13,6 +13,8 @@
   width: 100%;
   display: flex;
   align-items: center;
+  background-color: #fff;
+  cursor: pointer;
   border: 1px solid black;
   border-radius: 10px;
   font-size: 12pt;
@@ -57,6 +59,8 @@
   width: 100%;
   display: flex;
   align-items: center;
+  background-color: #fff;
+  cursor: pointer;
   border: 1px solid black;
   border-radius: 10px;
   font-size: 12pt;
