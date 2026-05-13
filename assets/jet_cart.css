@@ -582,3 +582,143 @@
 .jet-pbpf .jet-popup-footer-step2 .jet-popup-buttons-right {
   justify-content: flex-end;
 }
+
+/* Мобилен изглед: една колона (етикет над поле), футър бутони един под друг */
+@media (max-width: 749px) {
+  .jet-pbpf .jet-popup-container {
+    width: calc(100% - 24px);
+    max-width: 100%;
+    margin: 0 12px;
+  }
+
+  .jet-pbpf .jet-popup-content {
+    margin: 12px 0 4px 0;
+    padding: 0 16px;
+  }
+
+  .jet-pbpf .jet-popup-footer {
+    padding: 12px 16px;
+  }
+
+  .jet-pbpf .jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .jet-pbpf .jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) .jet-popup-label {
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .jet-pbpf .jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) .jet-popup-input-group {
+    flex: none;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .jet-pbpf .jet-popup-input-group .jet-popup-input,
+  .jet-pbpf .jet-popup-input-group .jet-select-wrap {
+    width: 100%;
+    flex: none;
+    max-width: 100%;
+  }
+
+  .jet-pbpf .jet-popup-input-group>.jet-popup-btn {
+    width: 100%;
+    margin-left: 0;
+    flex: none;
+    align-self: stretch;
+  }
+
+  .jet-pbpf .jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) .jet-popup-input,
+  .jet-pbpf .jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) .jet-popup-select {
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .jet-pbpf .jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) .jet-popup-euro-bgn-wrap {
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .jet-pbpf .jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) .jet-select-wrap {
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .jet-pbpf .jet-popup-content .jet-popup-row,
+  .jet-pbpf .jet-popup-step2-body .jet-popup-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .jet-pbpf .jet-popup-label {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .jet-pbpf .jet-popup-step2-body .jet-popup-row .jet-popup-input,
+  .jet-pbpf .jet-popup-step2-body .jet-popup-row .jet-popup-select {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .jet-pbpf .jet-popup-buttons {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .jet-pbpf .jet-popup-buttons .jet-popup-btn {
+    width: 100%;
+    margin-left: 0;
+    flex: none;
+  }
+
+  .jet-pbpf .jet-popup-footer-step2 {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .jet-pbpf .jet-popup-footer-step2 .jet-popup-buttons,
+  .jet-pbpf .jet-popup-footer-step2 .jet-popup-buttons-left,
+  .jet-pbpf .jet-popup-footer-step2 .jet-popup-buttons-right {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .jet-pbpf .jet-popup-submit-wrap {
+    display: block;
+    width: 100%;
+  }
+
+  .jet-pbpf .jet-popup-submit-wrap .jet-popup-btn {
+    width: 100%;
+  }
+
+  .jet-pbpf .jet-popup-checkbox {
+    transform: scale(1.12);
+    -ms-transform: scale(1.12);
+    -moz-transform: scale(1.12);
+    -webkit-transform: scale(1.12);
+    padding: 4px;
+    margin-right: 8px;
+    margin-top: 2px;
+  }
+
+  .jet-pbpf .jet-popup-checkbox-label {
+    font-size: 12px;
+    gap: 6px;
+  }
+}
