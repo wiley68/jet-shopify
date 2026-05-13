@@ -1,10 +1,41 @@
-#jet-cart-button-container {
+/* ПБ Лични Финанси – изолиран root: стилове не излизат навън и темата по-трудно ги презаписва */
+.jet-pbpf {
+  --jet-pbpf-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--jet-pbpf-font);
+  font-size: 16px;
+  line-height: 1.5;
+  color: #052e16;
+  -webkit-font-smoothing: antialiased;
+  text-align: left;
+  isolation: isolate;
+}
+
+.jet-pbpf *,
+.jet-pbpf *::before,
+.jet-pbpf *::after {
+  box-sizing: border-box;
+}
+
+.jet-pbpf button,
+.jet-pbpf input,
+.jet-pbpf select,
+.jet-pbpf textarea {
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: none;
+}
+
+.jet-pbpf a {
+  color: inherit;
+}
+
+.jet-pbpf #jet-cart-button-container {
   display: flex;
   max-width: var(--jet-btn-max-width, 570px);
   width: 100%;
 }
 
-#jet-cart-button-container .jet-product-button-trigger {
+.jet-pbpf #jet-cart-button-container .jet-product-button-trigger {
   width: 100%;
   display: flex;
   align-items: center;
@@ -22,24 +53,24 @@
   box-sizing: border-box;
 }
 
-#jet-cart-button-container .jet-product-button-trigger:hover {
+.jet-pbpf #jet-cart-button-container .jet-product-button-trigger:hover {
   background-color: #f0fdf4;
 }
 
-#jet-cart-button-container .jet-btn-text {
+.jet-pbpf #jet-cart-button-container .jet-btn-text {
   flex: 1;
   text-align: right;
   padding-right: 4px;
 }
 
-#jet-cart-button-container .jet-btn-logo {
+.jet-pbpf #jet-cart-button-container .jet-btn-logo {
   flex: 1;
   display: flex;
   justify-content: flex-start;
   padding-left: 4px;
 }
 
-#jet-cart-button-container .jet-btn-logo img {
+.jet-pbpf #jet-cart-button-container .jet-btn-logo img {
   width: auto;
   height: min(40px, calc(var(--jet-btn-height, 52px) - 12px));
   max-width: none;
@@ -47,14 +78,14 @@
 }
 
 /* Разстояние само между двата бутона в количката */
-#jet-cart-button-card-container {
+.jet-pbpf #jet-cart-button-card-container {
   margin-top: 20px;
   display: flex;
   max-width: var(--jet-btn-max-width, 570px);
   width: 100%;
 }
 
-#jet-cart-button-card-container .jet-product-button-trigger {
+.jet-pbpf #jet-cart-button-card-container .jet-product-button-trigger {
   width: 100%;
   display: flex;
   align-items: center;
@@ -72,24 +103,24 @@
   box-sizing: border-box;
 }
 
-#jet-cart-button-card-container .jet-product-button-trigger:hover {
+.jet-pbpf #jet-cart-button-card-container .jet-product-button-trigger:hover {
   background-color: #f0fdf4;
 }
 
-#jet-cart-button-card-container .jet-btn-text {
+.jet-pbpf #jet-cart-button-card-container .jet-btn-text {
   flex: 1;
   text-align: right;
   padding-right: 4px;
 }
 
-#jet-cart-button-card-container .jet-btn-logo {
+.jet-pbpf #jet-cart-button-card-container .jet-btn-logo {
   flex: 1;
   display: flex;
   justify-content: flex-start;
   padding-left: 4px;
 }
 
-#jet-cart-button-card-container .jet-btn-logo img {
+.jet-pbpf #jet-cart-button-card-container .jet-btn-logo img {
   width: auto;
   height: min(40px, calc(var(--jet-btn-height, 52px) - 12px));
   max-width: none;
@@ -97,7 +128,7 @@
 }
 
 /* Текст за вноските */
-.jet-vnoska-text {
+.jet-pbpf .jet-vnoska-text {
   display: block;
   padding: 2px 0px;
   color: #01a66c;
@@ -108,13 +139,13 @@
 }
 
 /* Сума в лева в скоби – по-малък шрифт и по-слаба дебелина */
-.jet-vnoska-text .jet-vnoska-bgn {
+.jet-pbpf .jet-vnoska-text .jet-vnoska-bgn {
   font-size: 0.85em;
   font-weight: 400;
 }
 
 /* Съобщение за грешка при липсващи настройки */
-.jet-product-error {
+.jet-pbpf .jet-product-error {
   color: #d32f2f;
   padding: 10px;
   background-color: #ffebee;
@@ -122,13 +153,14 @@
   border-radius: 4px;
 }
 
-.jet-product-error ul {
+.jet-pbpf .jet-product-error ul {
   margin: 10px 0;
   padding-left: 20px;
 }
 
 /* Popup стилове */
-.jet-popup-overlay {
+.jet-pbpf .jet-popup-overlay,
+.jet-popup-overlay.jet-pbpf {
   position: fixed;
   top: 0;
   left: 0;
@@ -141,7 +173,7 @@
   justify-content: center;
 }
 
-.jet-popup-container {
+.jet-pbpf .jet-popup-container {
   background: white;
   border-radius: 3px;
   padding: 0;
@@ -155,7 +187,7 @@
 }
 
 /* Тяло на попъпа – отстъпи по вертикала с margin, по хоризонтала с padding */
-.jet-popup-content {
+.jet-pbpf .jet-popup-content {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -166,7 +198,7 @@
 }
 
 /* Футър – отделна секция, от край до край (като тялото и разделителя) */
-.jet-popup-footer {
+.jet-pbpf .jet-popup-footer {
   flex-shrink: 0;
   width: 100%;
   background: #01a66c;
@@ -175,12 +207,12 @@
   margin: 0;
 }
 
-.jet-popup-footer-inner {
+.jet-pbpf .jet-popup-footer-inner {
   width: 100%;
 }
 
 /* Стъпка 2: Назад вляво, Откажи + Изпрати вдясно */
-.jet-popup-footer-step2 {
+.jet-pbpf .jet-popup-footer-step2 {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -188,71 +220,71 @@
 }
 
 /* Стъпките са flex колони с 8px gap между редовете */
-.jet-popup-step {
+.jet-pbpf .jet-popup-step {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.jet-popup-step2-body {
+.jet-pbpf .jet-popup-step2-body {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.jet-popup-step2-body .jet-popup-input {
+.jet-pbpf .jet-popup-step2-body .jet-popup-input {
   text-align: left;
 }
 
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) {
+.jet-pbpf .jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) {
   gap: 8px;
 }
 
-.jet-popup-row {
+.jet-pbpf .jet-popup-row {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
 /* Стилове за първата секция (редове 1–8) – само за реда и етикета, не за input/select */
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8),
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) .jet-popup-label {
+.jet-pbpf .jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8),
+.jet-pbpf .jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) .jet-popup-label {
   color: #052e16;
   font-size: 14pt;
   font-weight: 400;
   line-height: 20px;
 }
 
-.jet-popup-label {
+.jet-pbpf .jet-popup-label {
   min-width: 200px;
   font-weight: 500;
   text-align: left;
 }
 
 /* Колоните в първите 8 реда да са 50/50 */
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) .jet-popup-label {
+.jet-pbpf .jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) .jet-popup-label {
   flex: 0 0 50%;
   min-width: 0;
   max-width: 50%;
 }
 
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) .jet-popup-input-group {
+.jet-pbpf .jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) .jet-popup-input-group {
   flex: 1;
 }
 
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) .jet-popup-input,
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) .jet-popup-select {
+.jet-pbpf .jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) .jet-popup-input,
+.jet-pbpf .jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) .jet-popup-select {
   flex: 1;
 }
 
-.jet-popup-input-group {
+.jet-pbpf .jet-popup-input-group {
   display: flex;
   gap: 8px;
   flex: 1;
 }
 
-.jet-popup-input,
-.jet-popup-select {
+.jet-pbpf .jet-popup-input,
+.jet-pbpf .jet-popup-select {
   flex: 1;
   padding: 10px 20px;
   height: 48px;
@@ -265,7 +297,7 @@
   box-sizing: border-box;
 }
 
-.jet-popup-euro-bgn-wrap {
+.jet-pbpf .jet-popup-euro-bgn-wrap {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -276,30 +308,30 @@
   font-weight: 600;
 }
 
-.jet-popup-euro-bgn-wrap .jet-popup-euro {
+.jet-pbpf .jet-popup-euro-bgn-wrap .jet-popup-euro {
   font-weight: 600;
   font-size: inherit;
 }
 
-.jet-popup-euro-bgn-wrap .jet-popup-bgn {
+.jet-pbpf .jet-popup-euro-bgn-wrap .jet-popup-bgn {
   font-size: 0.85em;
   font-weight: 400;
 }
 
 /* Нативна визуализация на select (когато не е в custom wrap) */
-select.jet-popup-select {
+.jet-pbpf select.jet-popup-select {
   appearance: menulist;
   -webkit-appearance: menulist;
 }
 
 /* Custom dropdown за брой вноски – визуално контролираме падинга в опциите */
-.jet-select-wrap {
+.jet-pbpf .jet-select-wrap {
   position: relative;
   flex: 1;
   min-width: 0;
 }
 
-.jet-select-wrap select.jet-popup-select {
+.jet-pbpf .jet-select-wrap select.jet-popup-select {
   position: absolute;
   left: 0;
   top: 0;
@@ -310,7 +342,7 @@ select.jet-popup-select {
   z-index: 0;
 }
 
-.jet-select-display {
+.jet-pbpf .jet-select-display {
   position: relative;
   z-index: 1;
   flex: 1;
@@ -332,7 +364,7 @@ select.jet-popup-select {
 }
 
 /* Икона падащо меню (chevron надолу) в десния край */
-.jet-select-display::after {
+.jet-pbpf .jet-select-display::after {
   content: "";
   position: absolute;
   right: 14px;
@@ -346,11 +378,11 @@ select.jet-popup-select {
   pointer-events: none;
 }
 
-.jet-select-display:hover {
+.jet-pbpf .jet-select-display:hover {
   border-color: #15803d;
 }
 
-.jet-select-list {
+.jet-pbpf .jet-select-list {
   position: absolute;
   top: 100%;
   left: 0;
@@ -365,7 +397,7 @@ select.jet-popup-select {
   box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.jet-select-option {
+.jet-pbpf .jet-select-option {
   padding: 10px 20px 10px 12px;
   text-align: right;
   cursor: pointer;
@@ -378,57 +410,57 @@ select.jet-popup-select {
   box-sizing: border-box;
 }
 
-.jet-select-option:hover {
+.jet-pbpf .jet-select-option:hover {
   background: #f0fdf4;
 }
 
-.jet-select-option--disabled {
+.jet-pbpf .jet-select-option--disabled {
   color: #9ca3af;
   cursor: not-allowed;
   font-weight: 500;
 }
 
-.jet-select-option--disabled:hover {
+.jet-pbpf .jet-select-option--disabled:hover {
   background: transparent;
 }
 
 /* По-дебел шрифт и същият цвят като реда – полетата не наследяват цвета по подразбиране */
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) input.jet-popup-input,
-.jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) select.jet-popup-select,
-input.jet-popup-input,
-select.jet-popup-select {
+.jet-pbpf .jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) input.jet-popup-input,
+.jet-pbpf .jet-popup-content .jet-popup-step .jet-popup-row:nth-child(-n + 8) select.jet-popup-select,
+.jet-pbpf input.jet-popup-input,
+.jet-pbpf select.jet-popup-select {
   color: #052e16;
   font-weight: 600;
 }
 
-.jet-popup-input:focus,
-.jet-popup-select:focus {
+.jet-pbpf .jet-popup-input:focus,
+.jet-pbpf .jet-popup-select:focus {
   outline: none;
   border: 1px solid #15803d;
 }
 
-.jet-popup-input-readonly {
+.jet-pbpf .jet-popup-input-readonly {
   background-color: #f5f5f5 !important;
   cursor: not-allowed;
 }
 
 /* Подсветка при непопълнено/невалидно поле (стъпка 2) */
-.jet-popup-input.jet-input-error,
-.jet-popup-input.jet-input-error:focus {
+.jet-pbpf .jet-popup-input.jet-input-error,
+.jet-pbpf .jet-popup-input.jet-input-error:focus {
   border-color: #dc2626;
 }
 
-.jet-popup-submit-wrap {
+.jet-pbpf .jet-popup-submit-wrap {
   display: inline-block;
   position: relative;
   cursor: pointer;
 }
 
-.jet-popup-submit-wrap .jet-popup-btn:disabled {
+.jet-pbpf .jet-popup-submit-wrap .jet-popup-btn:disabled {
   pointer-events: none;
 }
 
-.jet-popup-btn {
+.jet-pbpf .jet-popup-btn {
   height: 48px;
   background-color: #166534;
   border-radius: 3px;
@@ -445,20 +477,20 @@ select.jet-popup-select {
   color: #f0fdf4;
 }
 
-.jet-popup-btn:hover {
+.jet-pbpf .jet-popup-btn:hover {
   background-color: #12542b;
 }
 
-.jet-popup-btn:disabled {
+.jet-pbpf .jet-popup-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.jet-popup-btn:disabled:hover {
+.jet-pbpf .jet-popup-btn:disabled:hover {
   background-color: #166534;
 }
 
-.jet-loader-spinner {
+.jet-pbpf .jet-loader-spinner {
   display: inline-block;
   width: 14px;
   height: 14px;
@@ -476,13 +508,13 @@ select.jet-popup-select {
   }
 }
 
-.jet-btn-loading {
+.jet-pbpf .jet-btn-loading {
   pointer-events: none;
   opacity: 0.8;
 }
 
 /* Разделител от край до край на попъпа – излиза извън padding на content */
-.jet-popup-divider {
+.jet-pbpf .jet-popup-divider {
   height: 1px;
   background-color: #01a66c;
   margin: 8px -24px 0px -24px;
@@ -491,7 +523,7 @@ select.jet-popup-select {
   flex-shrink: 0;
 }
 
-.jet-popup-checkbox-label {
+.jet-pbpf .jet-popup-checkbox-label {
   display: flex;
   align-items: flex-start;
   gap: 4px;
@@ -500,27 +532,27 @@ select.jet-popup-select {
   cursor: pointer;
 }
 
-.jet-popup-checkbox-label a {
+.jet-pbpf .jet-popup-checkbox-label a {
   color: inherit;
   text-decoration: none;
 }
 
-.jet-popup-checkbox-label a:hover {
+.jet-pbpf .jet-popup-checkbox-label a:hover {
   text-decoration: underline;
 }
 
-.jet-popup-link-text {
+.jet-pbpf .jet-popup-link-text {
   color: #01a66c;
   text-decoration: none;
   font-size: 13px;
 }
 
-.jet-popup-link-text:hover {
+.jet-pbpf .jet-popup-link-text:hover {
   text-decoration: underline;
 }
 
 /* Собствен стил за чекбоксите в попъпа – по-големи, квадратни, нативен вид */
-.jet-popup-checkbox {
+.jet-pbpf .jet-popup-checkbox {
   margin-top: 4px;
   margin-right: 12px;
   flex-shrink: 0;
@@ -537,16 +569,16 @@ select.jet-popup-select {
   cursor: pointer;
 }
 
-.jet-popup-buttons {
+.jet-pbpf .jet-popup-buttons {
   display: flex;
   justify-content: flex-end;
   gap: 4px;
 }
 
-.jet-popup-footer-step2 .jet-popup-buttons-left {
+.jet-pbpf .jet-popup-footer-step2 .jet-popup-buttons-left {
   justify-content: flex-start;
 }
 
-.jet-popup-footer-step2 .jet-popup-buttons-right {
+.jet-pbpf .jet-popup-footer-step2 .jet-popup-buttons-right {
   justify-content: flex-end;
 }
