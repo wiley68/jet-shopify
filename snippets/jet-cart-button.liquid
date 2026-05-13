@@ -70,13 +70,14 @@
       {% comment %} URL на приложението за заявки: основен и fallback (константи) {% endcomment %}
       {% assign jet_primary_url = 'https://pb.avalonbg.com/index.php' %}
       {% assign jet_secondary_url = 'https://pb.avalon-bg.eu/index.php' %}
+      {% assign jet_btn_max_w = settings.jet_btn_max_width | default: 570 %}
+      {% assign jet_btn_h = settings.jet_btn_height | default: 52 %}
+      {% assign jet_btn_r = settings.jet_btn_round | default: 14 %}
 
       <div
         id="jet-cart-button-container"
         class="jet-cart-button jet-product-button"
-        {% if settings.jet_gap > 0 %}
-          style="--jet-gap: {{ settings.jet_gap }}px;"
-        {% endif %}
+        style="--jet-btn-max-width: {{ jet_btn_max_w }}px; --jet-btn-height: {{ jet_btn_h }}px; --jet-btn-round: {{ jet_btn_r }}px;"
         data-product-price="{{ cart_total_cents }}"
         data-jet-minprice="{{ settings.jet_minprice }}"
         data-jet-min-vnoski="{{ jet_min_vnoski }}"
@@ -94,7 +95,9 @@
         data-jet-secondary-url="{{ jet_secondary_url | escape }}"
       >
         <button type="button" class="jet-product-button-trigger">
-          <span class="jet-btn-text">Купи на изплащане с</span>
+          <span class="jet-btn-text">
+            {{- settings.jet_btn_text | strip | default: 'Купи на изплащане с' | escape -}}
+          </span>
           <span class="jet-btn-logo">
             <img
               src="{{ 'jet.png' | asset_url }}"
@@ -359,6 +362,7 @@
         <div
           id="jet-cart-button-card-container"
           class="jet-product-button"
+          style="--jet-btn-max-width: {{ jet_btn_max_w }}px; --jet-btn-height: {{ jet_btn_h }}px; --jet-btn-round: {{ jet_btn_r }}px;"
           data-product-price="{{ cart_total_cents }}"
           data-jet-minprice="{{ settings.jet_minprice }}"
           data-jet-min-vnoski="{{ jet_min_vnoski }}"
@@ -375,7 +379,9 @@
           data-jet-secondary-url="{{ jet_secondary_url | escape }}"
         >
           <button type="button" class="jet-product-button-trigger">
-            <span class="jet-btn-text">Купи на вноски с кредитна карта</span>
+            <span class="jet-btn-text">
+              {{- settings.jet_btn_text_card | strip | default: 'Купи на вноски с кредитна карта' | escape -}}
+            </span>
             <span class="jet-btn-logo">
               <img
                 src="{{ 'jet.png' | asset_url }}"
