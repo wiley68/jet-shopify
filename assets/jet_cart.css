@@ -10,8 +10,9 @@
   align-items: center;
   background-color: #fff;
   cursor: pointer;
-  border: 1px solid black;
+  border: 2px solid #166534;
   border-radius: var(--jet-btn-round, 14px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   font-size: 12pt;
   font-weight: 400;
   line-height: 1.25;
@@ -22,7 +23,7 @@
 }
 
 #jet-cart-button-container .jet-product-button-trigger:hover {
-  background-color: #fafafa;
+  background-color: #f0fdf4;
 }
 
 #jet-cart-button-container .jet-btn-text {
@@ -59,8 +60,9 @@
   align-items: center;
   background-color: #fff;
   cursor: pointer;
-  border: 1px solid black;
+  border: 2px solid #166534;
   border-radius: var(--jet-btn-round, 14px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   font-size: 12pt;
   font-weight: 400;
   line-height: 1.25;
@@ -71,7 +73,7 @@
 }
 
 #jet-cart-button-card-container .jet-product-button-trigger:hover {
-  background-color: #fafafa;
+  background-color: #f0fdf4;
 }
 
 #jet-cart-button-card-container .jet-btn-text {
