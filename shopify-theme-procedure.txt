@@ -1,4 +1,4 @@
-1.0.1
+version: 1.0.4
 
 1) Папка за проекта
    - Създай папка за магазина (напр. shopify/)
@@ -10,6 +10,8 @@
 
 3) Login (админ акаунт или Partner access с Themes права)
    shopify auth login
+   или ползваме към всяка команда: --password <password token>
+   генерирана от апа: Theme Access
 
 4) Намиране на Theme ID
    shopify theme list -s <SITE_URL>
