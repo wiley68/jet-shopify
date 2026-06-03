@@ -209,11 +209,68 @@
   }
 
   /**
+   * Търси цена на вариант в product JSON (variants масив) – Dawn и други OS 2.0 теми
+   * @param {string|number} variantId
+   * @returns {number} Цената в центове или 0
+   */
+  function findVariantPriceById(variantId) {
+    if (!variantId) return 0;
+    var scripts = document.querySelectorAll('script[type="application/json"]');
+    for (var i = 0; i < scripts.length; i++) {
+      var script = scripts[i];
+      if (!script) continue;
+      try {
+        var data = JSON.parse(script.textContent || '{}');
+        if (data.variants && Array.isArray(data.variants)) {
+          for (var j = 0; j < data.variants.length; j++) {
+            var variant = data.variants[j];
+            if (variant && String(variant.id) === String(variantId) && variant.price > 0) {
+              return variant.price;
+            }
+          }
+        }
+      } catch (e) { }
+    }
+    return 0;
+  }
+
+  /**
+   * Чете избрания вариант от Dawn script[data-selected-variant] (обновява се от VariantSelects)
+   * @returns {{ id?: number|string, price?: number }|null}
+   */
+  function getSelectedVariantFromDom() {
+    var script = document.querySelector('script[type="application/json"][data-selected-variant]');
+    if (!script) return null;
+    try {
+      var data = JSON.parse(script.textContent || '{}');
+      return data && data.id ? data : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
    * Извлича цената на варианта от различни източници
    * @returns {number} Цената в центове или 0 ако не може да се намери
    */
   function getVariantPrice() {
-    // Метод 1: От JSON скрипта на варианта (най-надеждно, синхронно)
+    var currentVariantId = getCurrentVariantId();
+
+    // Метод 1: Dawn – script[data-selected-variant] (динамично обновяван от темата)
+    var selectedVariant = getSelectedVariantFromDom();
+    if (selectedVariant && selectedVariant.price && selectedVariant.price > 0) {
+      if (!currentVariantId || String(selectedVariant.id) === String(currentVariantId)) {
+        return selectedVariant.price;
+      }
+    }
+
+    // Метод 2: Product JSON – търсене по текущ variant ID
+    if (currentVariantId) {
+      var priceById = findVariantPriceById(currentVariantId);
+      if (priceById > 0) return priceById;
+    }
+
+    // Метод 3: JSON скрипт на единичен вариант във формата (Horizon и др.)
     const variantScripts = document.querySelectorAll('form script[type="application/json"]');
     for (let i = 0; i < variantScripts.length; i++) {
       const script = variantScripts[i];
@@ -222,20 +279,21 @@
         const scriptText = script.textContent;
         if (!scriptText) continue;
         const variantData = JSON.parse(scriptText);
-        if (variantData && variantData.price && variantData.price > 0) {
-          return variantData.price; // Цената вече е в центове
+        if (variantData && variantData.id && variantData.price && variantData.price > 0) {
+          if (!currentVariantId || String(variantData.id) === String(currentVariantId)) {
+            return variantData.price;
+          }
         }
       } catch (e) {
         // Игнорираме грешки при парсване
       }
     }
 
-    // Метод 2: От data-variant-id на избрания radio бутон
+    // Метод 4: От data-variant-id на избрания radio бутон
     const checkedRadio = document.querySelector('input[type="radio"][name*="variant"]:checked, input[type="radio"][name*="Color"]:checked, input[type="radio"][name*="Size"]:checked');
     if (checkedRadio && checkedRadio instanceof HTMLInputElement) {
       const variantId = checkedRadio.getAttribute('data-variant-id');
       if (variantId) {
-        // Търсим JSON скрипта с този variant ID
         for (let i = 0; i < variantScripts.length; i++) {
           const script = variantScripts[i];
           if (!script) continue;
@@ -253,21 +311,16 @@
       }
     }
 
-    // Метод 3: От контейнера (data-variant-id или data-product-price)
+    // Метод 5: От контейнера – само ако variant ID съвпада (избягваме остаряла цена)
     const container = document.getElementById('jet-product-button-container');
-    if (container) {
-      const variantId = container.dataset.variantId;
-      if (variantId) {
-        // Ако имаме variant ID, ще използваме API заявка (асинхронно)
-        // Но за синхронна функция, първо проверяваме дали имаме цена в контейнера
-        const containerPrice = parseFloat(container.dataset.productPrice || '0');
-        if (containerPrice > 0) {
-          return containerPrice;
-        }
+    if (container && currentVariantId && String(container.dataset.variantId) === String(currentVariantId)) {
+      const containerPrice = parseFloat(container.dataset.productPrice || '0');
+      if (containerPrice > 0) {
+        return containerPrice;
       }
     }
 
-    // Метод 4: От DOM елемента с цената (fallback, но не е надеждно)
+    // Метод 6: От DOM елемента с цената (fallback, но не е надеждно)
     const priceElement = document.querySelector('product-price .price, .price');
     if (priceElement) {
       const priceText = priceElement.textContent || '';
@@ -362,15 +415,15 @@
     const container = document.getElementById('jet-product-button-container');
     if (!container) return;
 
-    const oldPrice = parseFloat(container.dataset.productPrice || '0');
-
     // Изчакваме малко за да Shopify обнови DOM-а
     setTimeout(function () {
       let unitPrice = getVariantPrice();
       const variantId = getCurrentVariantId();
+      const variantChanged = !!(variantId && container.dataset.variantId &&
+        String(variantId) !== String(container.dataset.variantId));
 
-      // Ако синхронните методи не дадоха резултат и имаме variant ID, опитваме се с API
-      if ((!unitPrice || unitPrice === 0) && variantId) {
+      // Ако синхронните методи не дадоха резултат или вариантът е сменен, опитваме се с API
+      if (((!unitPrice || unitPrice === 0) || variantChanged) && variantId) {
         getVariantPriceFromAPI(variantId).then(function (apiPrice) {
           if (apiPrice > 0) {
             unitPrice = apiPrice;
@@ -413,11 +466,81 @@
         const newPrice = unitPriceValue * quantity;
 
         if (newPrice > 0) {
-          // Обновяваме цената в контейнера (за попъпа при отваряне)
           container.dataset.productPrice = String(unitPriceValue);
+          if (variantId) container.dataset.variantId = String(variantId);
         }
       }
     }, 300); // Изчакваме 300ms за да Shopify обнови цената в DOM
+  }
+
+  /**
+   * Проверява дали елементът е контрол за избор на вариант (radio, select или hidden id)
+   * @param {EventTarget|null} target
+   * @returns {boolean}
+   */
+  function isProductVariantOptionTarget(target) {
+    if (!(target instanceof HTMLElement)) return false;
+    if (target instanceof HTMLInputElement && target.type === 'radio') {
+      var radioName = target.name || '';
+      return radioName.includes('Color') || radioName.includes('Size') ||
+        radioName.includes('variant') || radioName.includes('option');
+    }
+    if (target instanceof HTMLSelectElement) {
+      var selectName = target.name || '';
+      return selectName.indexOf('options[') === 0 || selectName.includes('option');
+    }
+    if (target instanceof HTMLInputElement && target.name === 'id') {
+      return !!target.closest('form[action*="cart/add"], form[data-type="add-to-cart-form"]');
+    }
+    return false;
+  }
+
+  /**
+   * Обработва промяна на вариант – обновява цената и отворения popup
+   */
+  function handleVariantOptionChange() {
+    setTimeout(function () {
+      updatePriceFromVariant();
+      var overlay = document.getElementById('jet-popup-overlay');
+      if (overlay && overlay.style.display === 'flex') {
+        setTimeout(function () { openJetPopup(); }, 200);
+      }
+      var overlayCard = document.getElementById('jet-popup-overlay-card');
+      if (overlayCard && overlayCard.style.display === 'flex') {
+        setTimeout(function () { openJetPopupCard(); }, 200);
+      }
+    }, 150);
+  }
+
+  /**
+   * Следи input[name="id"] и script[data-selected-variant] – Dawn обновява variant без radio
+   */
+  function setupVariantChangeObserver() {
+    var idInput = document.querySelector('form[action*="cart/add"] input[name="id"], form[data-type="add-to-cart-form"] input[name="id"]');
+    if (idInput && idInput instanceof HTMLInputElement) {
+      var lastVariantId = idInput.value || '';
+      var onIdChange = function () {
+        var currentId = idInput.value || '';
+        if (currentId && currentId !== lastVariantId) {
+          lastVariantId = currentId;
+          handleVariantOptionChange();
+        }
+      };
+      idInput.addEventListener('change', onIdChange);
+      new MutationObserver(onIdChange).observe(idInput, { attributes: true, attributeFilter: ['value'] });
+    }
+
+    var selectedScript = document.querySelector('script[type="application/json"][data-selected-variant]');
+    if (selectedScript) {
+      var lastScriptContent = selectedScript.textContent || '';
+      new MutationObserver(function () {
+        var currentContent = selectedScript.textContent || '';
+        if (currentContent && currentContent !== lastScriptContent) {
+          lastScriptContent = currentContent;
+          handleVariantOptionChange();
+        }
+      }).observe(selectedScript, { characterData: true, childList: true, subtree: true });
+    }
   }
 
   /**
@@ -433,9 +556,11 @@
     // Вземаме актуалната цена (включително опциите и количеството)
     let productPrice = getVariantPrice();
     const variantId = getCurrentVariantId();
+    const variantChanged = !!(variantId && container.dataset.variantId &&
+      String(variantId) !== String(container.dataset.variantId));
 
-    // Ако синхронните методи не дадоха резултат и имаме variant ID, опитваме се с API
-    if ((!productPrice || productPrice === 0) && variantId) {
+    // Ако синхронните методи не дадоха резултат или вариантът е сменен, опитваме се с API
+    if (((!productPrice || productPrice === 0) || variantChanged) && variantId) {
       getVariantPriceFromAPI(variantId).then(function (apiPrice) {
         if (apiPrice > 0) {
           productPrice = apiPrice;
@@ -914,11 +1039,15 @@
     if (!overlay) return;
     const container = document.getElementById('jet-product-button-card-container');
     if (!container) return;
+    const mainContainer = document.getElementById('jet-product-button-container');
     let productPrice = getVariantPrice();
     const variantId = getCurrentVariantId();
+    const storedVariantId = (mainContainer && mainContainer.dataset.variantId) || container.dataset.variantId;
+    const variantChanged = !!(variantId && storedVariantId &&
+      String(variantId) !== String(storedVariantId));
 
-    // Ако синхронните методи не дадоха резултат и имаме variant ID, опитваме се с API
-    if ((!productPrice || productPrice === 0) && variantId) {
+    // Ако синхронните методи не дадоха резултат или вариантът е сменен, опитваме се с API
+    if (((!productPrice || productPrice === 0) || variantChanged) && variantId) {
       getVariantPriceFromAPI(variantId).then(function (apiPrice) {
         if (apiPrice > 0) {
           productPrice = apiPrice;
@@ -1757,32 +1886,18 @@
       initPopupCard();
     }
 
-    // Прихващаме промяна на опциите (варианти)
-    // Използваме делегиране на събития за да работи и с динамично добавени елементи
+    // Прихващаме промяна на опциите (варианти) – radio (Horizon), select (Dawn), input[name="id"]
     document.addEventListener('change', function (event) {
       const target = event.target;
 
-      // Проверяваме дали е промяна на вариант (radio бутони за опции)
-      if (target instanceof HTMLInputElement && target.type === 'radio') {
-        const name = target.name || '';
-        // Проверяваме дали е опция (Color, Size, или съдържа variant)
-        if (name.includes('Color') || name.includes('Size') || name.includes('variant') || name.includes('option')) {
-          updatePriceFromVariant();
-          // Ако popup-ът е отворен, обновяваме го
-          const overlay = document.getElementById('jet-popup-overlay');
-          if (overlay && overlay.style.display === 'flex') {
-            setTimeout(function () {
-              openJetPopup();
-            }, 300);
-          }
-        }
+      if (isProductVariantOptionTarget(target)) {
+        handleVariantOptionChange();
       }
 
-      // Проверяваме дали е промяна на количеството
       if (target instanceof HTMLInputElement && (target.name === 'quantity' || target.name.includes('quantity'))) {
         handleQuantityChange();
       }
-    }, true); // Използваме capture phase за по-надеждно прихващане
+    }, true);
 
     // Функция за обработка на промяна на количеството
     function handleQuantityChange() {
@@ -1868,25 +1983,13 @@
       }
     }
     setupQuantityObserver();
+    setupVariantChangeObserver();
 
-    // Прихващаме и click събития за radio бутони (за по-бърза реакция)
+    // Click върху radio/pill picker (Horizon, Dawn button picker)
     document.addEventListener('click', function (event) {
       const target = event.target;
-      if (target instanceof HTMLInputElement && target.type === 'radio') {
-        const name = target.name || '';
-        if (name.includes('Color') || name.includes('Size') || name.includes('variant') || name.includes('option')) {
-          // Изчакваме малко за да се обнови checked състоянието
-          setTimeout(function () {
-            updatePriceFromVariant();
-            // Ако popup-ът е отворен, обновяваме го
-            const overlay = document.getElementById('jet-popup-overlay');
-            if (overlay && overlay.style.display === 'flex') {
-              setTimeout(function () {
-                openJetPopup();
-              }, 200);
-            }
-          }, 100);
-        }
+      if (target instanceof HTMLInputElement && target.type === 'radio' && isProductVariantOptionTarget(target)) {
+        handleVariantOptionChange();
       }
     }, true);
 
