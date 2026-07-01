@@ -3,6 +3,12 @@
 
 # Допускай само тези файлове
 !.gitignore
+!README.md
+!install-settings.txt
+!install.pdf
+!install-procedure.txt
+!scripts/
+!scripts/generate-install-pdf.mjs
 !shopify-theme-procedure.txt
 !snippets/
 !snippets/jet-product-button.liquid
