@@ -11,12 +11,14 @@ install.pdf
 install-procedure.txt
 shopify-theme-procedure.txt
 
-# Скрипт за генериране на PDF
+# Скриптове за генериране на PDF и ZIP
 scripts/
+dist/
 
 # Папка app/ и всичко в нея (не е част от темата)
 app/
 
 # Временни зависимости при локална работа
 node_modules/
+package.json
 package-lock.json

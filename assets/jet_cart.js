@@ -607,7 +607,7 @@
    */
   function getAllowedVnoski(totalCreditPriceEuro, currentVnoski) {
     const disabledSet = getDisabledVnoskiValues(totalCreditPriceEuro);
-    const allowed = [3, 6, 9, 12, 15, 18, 24, 30, 36].filter(function (v) { return !disabledSet.has(String(v)); });
+    const allowed = [3, 6, 9, 10, 12, 15, 18, 24, 30, 36].filter(function (v) { return !disabledSet.has(String(v)); });
     if (allowed.length === 0) return currentVnoski;
     if (disabledSet.has(String(currentVnoski))) return allowed[0] ?? currentVnoski;
     return currentVnoski;

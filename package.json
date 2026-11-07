@@ -1,0 +1,11 @@
+{
+  "name": "jet-shopify",
+  "private": true,
+  "scripts": {
+    "generate:install-pdf": "node scripts/generate-install-pdf.mjs",
+    "generate:install-zip": "python3 scripts/generate-install-zip.py"
+  },
+  "devDependencies": {
+    "md-to-pdf": "^5.2.5"
+  }
+}

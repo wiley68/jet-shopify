@@ -9,6 +9,10 @@
 !install-procedure.txt
 !scripts/
 !scripts/generate-install-pdf.mjs
+!scripts/generate-install-zip.py
+!scripts/test_generate_install_zip.py
+!package.json
+!package-lock.json
 !shopify-theme-procedure.txt
 !snippets/
 !snippets/jet-product-button.liquid
